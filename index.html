@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>VM Building Society — Operational Risk &amp; Audit Register</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+
+:root { --red:#E4012B; --ink:#1C1416; --paper:#F6F3F1; --dim:#8A7E7A; --line:#EEE7E3; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans',system-ui,sans-serif; }
+.shell { min-height:100vh; display:flex; justify-content:center; }
+.shell.center { align-items:center; padding:20px; }
+.app { width:100%; max-width:430px; display:flex; flex-direction:column; min-height:100vh; }
+.content { flex:1; padding:4px 16px 96px; }
+.appbar { position:sticky; top:0; z-index:10; background:rgba(246,243,241,.93); backdrop-filter:blur(10px);
+  padding:14px 16px 10px; display:flex; align-items:center; gap:11px; }
+.brand { font-family:Sora,sans-serif; font-weight:800; font-size:16.5px; letter-spacing:-.01em; white-space:nowrap; }
+.banner { margin:0 16px 8px; background:#FBF2DC; color:#A07208; font-size:12px; border-radius:10px; padding:9px 12px; line-height:1.45; }
+.srcbadge { font-size:9.5px; font-weight:700; letter-spacing:.04em; color:#8A7E7A; background:#fff; border:1px solid var(--line);
+  border-radius:99px; padding:4px 8px; white-space:nowrap; }
+.srcbadge.live { color:#0E8A4D; border-color:#BFE3CF; background:#E5F4EC; }
+.userchip { width:36px; height:36px; border-radius:99px; background:var(--red); color:#fff; border:none; cursor:pointer;
+  font-family:Sora; font-weight:700; font-size:13px; flex-shrink:0; }
+.card { background:#fff; border-radius:18px; padding:16px; box-shadow:0 1px 3px rgba(28,20,22,.07); border:none; }
+.btncard { cursor:pointer; text-align:left; }
+.hero { background:linear-gradient(160deg,#E4012B 0%,#A60020 100%); border-radius:22px; padding:20px 18px 18px;
+  color:#fff; box-shadow:0 8px 24px rgba(164,1,35,.25); }
+.eyebrow { font-family:Sora; font-size:12px; font-weight:700; letter-spacing:.12em; opacity:.85; }
+.big { font-family:Sora; font-size:52px; font-weight:800; line-height:1.05; margin:6px 0 2px; }
+.num { font-family:Sora; font-size:26px; font-weight:800; }
+.num18 { font-family:Sora; font-size:18px; font-weight:800; } .num17 { font-family:Sora; font-size:17px; font-weight:800; }
+.num16 { font-family:Sora; font-size:16px; font-weight:800; }
+.t15 { font-family:Sora; font-size:15px; font-weight:700; } .t14 { font-family:Sora; font-size:14px; font-weight:700; }
+.t13 { font-size:13.5px; font-weight:600; line-height:1.3; }
+.sub { font-size:11.5px; color:var(--dim); } .sub13 { font-size:12.5px; color:#6E625E; line-height:1.5; }
+.dim13 { font-size:13px; opacity:.9; } .dim12 { font-size:12px; opacity:.85; } .dim11 { font-size:11px; opacity:.8; }
+.b { font-weight:700; }
+.h2l { font-family:Sora; font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin:22px 4px 10px; }
+.row { display:flex; } .col { display:flex; flex-direction:column; } .mid { align-items:center; }
+.between { justify-content:space-between; } .base { align-items:baseline; } .wrap { flex-wrap:wrap; }
+.gap8 { gap:8px; } .gap10 { gap:10px; } .pb8 { padding-bottom:8px; }
+.grid-status { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.grid-cats { display:grid; grid-template-columns:1fr; gap:10px; }
+.grid-measures { display:grid; grid-template-columns:1fr; gap:8px; padding-bottom:8px; }
+.chips { display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch; }
+.chip { border:1px solid #E4DDD9; background:#fff; color:#6E625E; font-size:12px; font-weight:600; padding:7px 12px;
+  border-radius:999px; white-space:nowrap; cursor:pointer; flex-shrink:0; font-family:inherit; }
+.chip.on { background:var(--red); border-color:var(--red); color:#fff; }
+.chip:disabled { color:#C9C2BE; cursor:default; }
+.pill { font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap; }
+.rowbtn { width:100%; border:none; background:none; padding:13px 14px; display:flex; align-items:center; gap:12px;
+  cursor:pointer; text-align:left; font-family:inherit; color:inherit; }
+.dot { width:8px; height:8px; border-radius:99px; flex-shrink:0; }
+.mgrid { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; margin-top:4px; }
+.mlab { font-size:10px; color:#A89C97; font-weight:600; } .mval { font-size:10.5px; font-weight:600; }
+.notebox { margin-top:10px; font-size:12px; color:#6E625E; background:#FAF7F5; border-radius:10px; padding:9px 11px; line-height:1.45; }
+.legend { display:flex; gap:12px; flex-wrap:wrap; margin:0 4px 10px; font-size:10.5px; color:#6E625E; font-weight:600; }
+.legend span { display:inline-flex; align-items:center; gap:4px; }
+.sw { width:11px; height:11px; border-radius:3px; display:inline-block; }
+.hm { min-width: calc(150px + 36 * 18px); }
+.hmname { width:150px; flex-shrink:0; position:sticky; left:0; background:#fff; z-index:2; font-size:10px; color:#4A403C;
+  padding-right:8px; line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hmname.b { font-weight:700; color:var(--ink); font-size:10.5px; }
+.hmyear { width:216px; font-family:Sora; font-size:11px; font-weight:700; color:var(--red); border-bottom:2px solid #F1ECE9;
+  padding-bottom:2px; text-align:center; }
+.hmmon { width:18px; font-size:8.5px; color:#A89C97; text-align:center; font-weight:600; }
+.hmcell { width:16px; height:16px; margin:1px; border-radius:3px; cursor:pointer; flex-shrink:0; }
+.hmgroup { position:sticky; left:0; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--dim); margin:8px 0 4px; background:#fff; width:150px; z-index:2; }
+.cta { width:100%; border:none; background:var(--red); color:#fff; font-family:Sora; font-weight:700; font-size:14px;
+  padding:13px 0; border-radius:12px; cursor:pointer; }
+.cta.shadow { box-shadow:0 6px 18px rgba(164,1,35,.3); font-size:15px; padding:15px 0; border-radius:14px; }
+.cta2 { width:100%; border:1.5px solid var(--red); background:#fff; color:var(--red); font-family:Sora; font-weight:700;
+  font-size:13px; padding:11px 0; border-radius:12px; cursor:pointer; margin-top:8px; }
+.sel { border:1.5px solid #E4DDD9; border-radius:10px; padding:8px 10px; font-size:13px; font-family:inherit; background:#fff; }
+.numin { width:70px; padding:8px; border:1.5px solid #E4DDD9; border-radius:10px; font-size:13px; font-weight:600;
+  text-align:right; font-family:inherit; }
+.nabtn { border:1px solid #E4DDD9; background:#fff; color:#8A7E7A; font-size:10px; font-weight:700; padding:6px 8px;
+  border-radius:8px; cursor:pointer; }
+.nabtn[data-on="true"] { background:#6E625E; color:#fff; }
+.minibtn { border:1px solid #E4DDD9; background:#fff; color:#6E625E; font-size:11px; font-weight:700; padding:6px 10px;
+  border-radius:8px; cursor:pointer; white-space:nowrap; flex-shrink:0; }
+.minibtn.warn { color:#8E0E1F; border-color:#F0CDD2; }
+.okmsg { font-size:12px; color:#0E8A4D; font-weight:600; text-align:center; margin-top:8px; background:#E5F4EC;
+  border-radius:10px; padding:8px 10px; }
+.errmsg { font-size:12px; color:#8E0E1F; font-weight:600; margin-bottom:10px; }
+.logincard { background:#fff; border-radius:22px; padding:28px 24px; width:100%; max-width:380px;
+  box-shadow:0 8px 30px rgba(28,20,22,.1); display:flex; flex-direction:column; align-items:center; text-align:center; }
+.login-in { width:100%; border:1.5px solid #E4DDD9; border-radius:12px; padding:12px 14px; font-size:14px;
+  font-family:inherit; margin-bottom:10px; }
+.tabbar { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:430px; background:#fff;
+  border-top:1px solid var(--line); display:flex; padding:8px 4px calc(10px + env(safe-area-inset-bottom)); z-index:20; }
+.tabbtn { flex:1; border:none; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center;
+  gap:3px; padding:4px; color:#A89C97; font-family:inherit; }
+.tabbtn span { font-size:10px; font-weight:700; font-family:Sora; }
+.tabbtn.on { color:var(--red); }
+
+/* ---- tablet ≥768px ---- */
+@media (min-width:768px) {
+  .app { max-width:760px; }
+  .content { padding:8px 24px 40px; }
+  .grid-status { grid-template-columns:repeat(4,1fr); }
+  .grid-cats { grid-template-columns:1fr 1fr; }
+  .tabbar { position:sticky; bottom:auto; top:62px; left:auto; transform:none; max-width:none; border-top:none;
+    border-bottom:1px solid var(--line); padding:6px 16px 10px; gap:6px; background:rgba(246,243,241,.93);
+    backdrop-filter:blur(10px); z-index:9; }
+  .tabbtn { flex:0 0 auto; flex-direction:row; gap:7px; padding:8px 16px; border-radius:999px; background:#fff;
+    border:1px solid #E4DDD9; }
+  .tabbtn.on { background:var(--red); border-color:var(--red); color:#fff; }
+  .tabbtn span { font-size:12px; }
+  .hmcell { width:19px; height:19px; } .hmmon { width:21px; } .hmyear { width:252px; }
+  .hmname { width:210px; } .hmgroup { width:210px; }
+  .hm { min-width: calc(210px + 36 * 21px); }
+  .mgrid { grid-template-columns:repeat(12,1fr); }
+  .big { font-size:60px; }
+}
+/* ---- desktop ≥1100px ---- */
+@media (min-width:1100px) {
+  .app { max-width:1020px; }
+  .grid-measures { grid-template-columns:1fr 1fr; gap:10px; }
+}
+.lockbtn { width:36px; height:36px; border-radius:99px; background:#fff; color:#8A7E7A; border:1px solid #E4DDD9;
+  cursor:pointer; display:grid; place-items:center; flex-shrink:0; }
+.overlay { position:fixed; inset:0; background:rgba(28,20,22,.45); z-index:50; display:flex; align-items:center;
+  justify-content:center; padding:20px; }
+.modal { background:#fff; border-radius:20px; padding:22px 20px; width:100%; max-width:360px;
+  box-shadow:0 12px 40px rgba(28,20,22,.25); }
+.loginpill { display:inline-flex; align-items:center; gap:5px; border:1px solid #E4DDD9; background:#fff; color:#6E625E;
+  font-family:Sora; font-weight:700; font-size:11.5px; padding:8px 13px; border-radius:999px; cursor:pointer; flex-shrink:0; }
+.modal { position:relative; }
+.modalx { position:absolute; top:10px; right:12px; border:none; background:#F6F3F1; color:#6E625E; width:28px; height:28px;
+  border-radius:99px; cursor:pointer; font-size:13px; font-weight:700; line-height:1; }
+.iconwrap { position:relative; display:inline-flex; }
+.tablock { position:absolute; top:-4px; right:-8px; background:#fff; border-radius:99px; padding:1px; }
+@media (min-width:768px) { .tablock { top:-5px; right:-9px; } }
+
+
+.toggle { display:flex; background:#fff; border:1px solid var(--line); border-radius:999px; padding:3px; gap:2px; }
+.toggle button { flex:1; border:none; background:none; font-family:Sora; font-weight:700; font-size:12.5px; color:#8A7E7A;
+  padding:8px 10px; border-radius:999px; cursor:pointer; white-space:nowrap; transition:all .15s; }
+.toggle button.on { background:var(--red); color:#fff; }
+.statpill { font-family:Sora; font-weight:700; font-size:11px; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+.apt { background:#fff; border-radius:16px; padding:14px; box-shadow:0 1px 3px rgba(28,20,22,.07); }
+.aptmeta { font-size:11px; color:#8A7E7A; margin-top:6px; display:flex; gap:10px; flex-wrap:wrap; }
+.kvtable { width:100%; font-size:12px; border-collapse:collapse; margin-top:8px; }
+.kvtable td { padding:5px 0; vertical-align:top; border-top:1px solid #F1ECE9; }
+.kvtable td:first-child { color:#8A7E7A; font-weight:600; width:38%; }
+.spark { display:flex; align-items:flex-end; gap:2px; height:34px; margin-top:6px; }
+.sparkbar { flex:1; border-radius:2px 2px 0 0; min-height:2px; }
+.erbtn { width:100%; text-align:left; border:none; background:#fff; border-radius:16px; padding:14px;
+  box-shadow:0 1px 3px rgba(28,20,22,.07); cursor:pointer; font-family:inherit; color:inherit; }
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const DATA = {"periods": ["Jan '24", "Feb '24", "Mar '24", "Apr '24", "May '24", "Jun '24", "Jul '24", "Aug '24", "Sep '24", "Oct '24", "Nov '24", "Dec '24", "Jan '25", "Feb '25", "Mar '25", "Apr '25", "May '25", "Jun '25", "Jul '25", "Aug '25", "Sep '25", "Oct '25", "Nov '25", "Dec '25", "Jan '26", "Feb '26", "Mar '26", "Apr '26", "May '26"], "periodsFull": ["January 2024", "February 2024", "March 2024", "April 2024", "May 2024", "June 2024", "July 2024", "August 2024", "September 2024", "October 2024", "November 2024", "December 2024", "January 2025", "February 2025", "March 2025", "April 2025", "May 2025", "June 2025", "July 2025", "August 2025", "September 2025", "October 2025", "November 2025", "December 2025", "January 2026", "February 2026", "March 2026", "April 2026", "May 2026"], "audit": [{"code": "VMBS-ICT-AA-2022 - System Uptime Review", "pid": 355, "exc": "Manual Monitoring of ABM Status", "rec": "Manual Monitoring of ABM Status", "find": "GIA noted through inquiry that the status of the ABM's are currently monitored manually by a member of the accounting unit twice daily to determine the reason for ABM outages/downtime.", "owner": "Devon Spaulding", "rating": "Moderate", "status": "Past Due", "issue": "2026-05-15", "due": "2023-12-31", "first": "Jan '24", "last": "May '26", "months": 28, "tl": [1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}, {"code": "VMBS-ABM-Skimming- 2024 - ABM Skimming 2024", "pid": 398, "exc": "Replace Magnetic Stripe Cards", "rec": "Replace Magnetic Stripe Cards", "find": "The primary ABM card used by VMBS is the magnetic stripe card, which is inherently easier to clone, providing fraudsters with opportunities to exploit the society's members. It is important to note that even after implementing the SSS toolkit, VMBS continues to experience elevated levels of fraud. This may be due to other financial institutions not adopting the same technology, as their customers' cards are not exposed to the same risks due to the use of EMV technology. Debit Card FraudJan-23Feb-23Mar-23Apr-23May-23Jun-23Jul-23Aug-23Sep-23Oct-23Nov-23Dec-23 N/A 129,000 574,000 150,000 - 29,500", "owner": "Paul Elliott", "rating": "High", "status": "Open", "issue": "2024-11-25", "due": "2027-03-31", "first": "Nov '24", "last": "May '26", "months": 19, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}, {"code": "VMBS-ABM-Skimming- 2024 - ABM Skimming 2024", "pid": 398, "exc": "Limitations in VM's ability to monitor the activities of the the ABMs", "rec": "Limitations in VM's ability to monitor the activities of the the ABMs", "find": "Interviews with key stakeholders revealed that the support team was unable to monitor ABM operations as effectively as needed. Although a system was in place to provide updates on ABMs within the network, there was no efficient alert mechanism to notify the team when incidents occurred.", "owner": "Paul Elliott", "rating": "High", "status": "Resolved", "issue": "2024-11-25", "due": "2025-06-30", "first": "Nov '24", "last": "May '25", "months": 7, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {"code": "VMBS-ABM-Skimming- 2024 - ABM Skimming 2024", "pid": 398, "exc": "Outdated Maintenance Service Agreement", "rec": "Outdated Maintenance Service Agreement", "find": "GIA notes that the maintenance agreement between VMBS and Productive Business Solutions (PBS) has not been updated since 2020. Since then, regulatory changes have occurred that would impact operating expectations from the Bank of Jamaica. Over the period April 2023 - September 2024 total payments of US$ 1.43 Million have been attributed to PBS in relation to the ABM's, underscoring the need for a review of maintenance agreement.", "owner": "Paul Elliott", "rating": "High", "status": "Resolved", "issue": "2024-11-25", "due": "2025-03-15", "first": "Nov '24", "last": "Feb '25", "months": 4, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {"code": "VMBS-ABM-Skimming- 2024 - ABM Skimming 2024", "pid": 398, "exc": "Inadequate Maintenance Reporting", "rec": "Inadequate Maintenance Reporting", "find": "A review of the current process revealed that maintenance reports for the ABM fleet are limited. Although some historical data on maintenance activities is available, the current report format makes it difficult for management to effectively assess and strategically plan for the fleet's maintenance needs.", "owner": "Paul Elliott", "rating": "High", "status": "Resolved", "issue": "2024-11-25", "due": "2024-11-30", "first": "Nov '24", "last": "Nov '24", "months": 1, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {"code": "VMBS-ABM-Skimming- 2024 - ABM Skimming 2024", "pid": 398, "exc": "Better collaboration between vendors PBS & Beryllium to enhance ABM security", "rec": "Better collaboration between vendors PBS & Beryllium to enhance ABM security", "find": "During this review, it was noted that on at least one occasion, Beryllium visited an ABM location where a skimming device had been installed. They serviced the machine, cleared the errors, and returned the ABM terminal to operation, all while it remained fitted with the skimming device. Due to the small size of the device, the Beryllium team did not detect it", "owner": "Paul Elliott", "rating": "High", "status": "Resolved", "issue": "2024-11-25", "due": "2024-12-15", "first": "Nov '24", "last": "Nov '24", "months": 1, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {"code": "VMBS-ExternalAudit-AA-2023 - VMBS Management Letter YE 31-Dec-2023", "pid": 402, "exc": "Mortgage trial balance not updated with newly created volume and folio information", "rec": "Timely update of mortgage trial balance", "find": "", "owner": "Nicola Anderson", "rating": "Grade 2 - Significant", "status": "Resolved", "issue": null, "due": "2024-07-31", "first": "Nov '24", "last": "Jan '25", "months": 3, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {"code": "VMBS-ExternalAudit-AA-2023 - VMBS Management Letter YE 31-Dec-2023", "pid": 402, "exc": "Titles audit Unverified items", "rec": "Titles Audit", "find": "", "owner": "Nicola Anderson", "rating": "Grade 2 - Significant", "status": "Resolved", "issue": null, "due": "2024-07-31", "first": "Nov '24", "last": "Jan '25", "months": 3, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {"code": "VMBS-ExternalAudit-AA-2024 - VMBS Management Letter YE 31-Dec-2024", "pid": 422, "exc": "Unverified titles", "rec": "Titles Audit", "find": "", "owner": "Paul Elliott", "rating": "Grade 2 - Significant", "status": "Resolved", "issue": null, "due": "2025-12-31", "first": "Oct '25", "last": "Feb '26", "months": 5, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0]}, {"code": "VMBS-HWT-AA-31-03-2025 - Half Way Tree Branch Audit 2025", "pid": 405, "exc": "Absence of Checker Signature and Date on ABM Card Application Form", "rec": "Absence of Checker Signature and Date on ABM Card Application Form", "find": "While reviewing the ABM cards application forms, the Internal Audit team noted that, in a sample size of forty-five (45) forms, five (5) instances, the \"checked by\" section was not dated, and in Ten (10) instances, the \"dated\" field was left blank. These omissions resulted in incomplete documentation and represented non-compliance with POL-414: Amendment Verification Policy. The absence of dates prevented confirmation of when the independent review occurred and whether verification was performed promptly following the amendment activity. The issue was observed across multiple samples, indicati", "owner": "Paul Elliott", "rating": "Moderate", "status": "Resolved", "issue": "2026-03-26", "due": "2025-12-31", "first": "Mar '26", "last": "Mar '26", "months": 1, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]}, {"code": "VMBS-HWT-AA-31-03-2025 - Half Way Tree Branch Audit 2025", "pid": 405, "exc": "Absence of Checker Signature and Date on Standing Order Forms", "rec": "Absence of Checker Signature and Date on Standing Order Forms", "find": "The Internal Audit team identified nine (9) instances out of a sample size of fifteen (15) where the \"Checked by Section\" and \"Dated by Section\" fields on Standing Order forms were not completed by the staff responsible for checking and verification. In these instances, the absence of required completion details resulted in incomplete documentation, despite the forms having progressed through the process. This issue was noted across multiple samples, indicating a control deficiency rather than an isolated occurrence. Observed results:NoDateName of CustomerType of MaintenanceForm Checked ByDate", "owner": "Paul Elliott", "rating": "Moderate", "status": "Resolved", "issue": "2026-03-26", "due": "2025-12-31", "first": "Mar '26", "last": "Mar '26", "months": 1, "tl": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]}, {"code": "VMBS-ICT-AA-2022 - System Uptime Review", "pid": 355, "exc": "Manual monitoring of Software Applications", "rec": "Manual monitoring of Software Applications", "find": "GIA noted that uptime/availability for most applications within the organization is currently being measured and tracked manually by the IT Department via issues raised within Service Desk Tickets.", "owner": "Devon Spaulding", "rating": "Moderate", "status": "Resolved", "issue": "2023-11-02", "due": "2024-12-31", "first": "Jan '24", "last": "Apr '26", "months": 27, "tl": [1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]}, {"code": "VMBS-Loans-2022 - VMBS - Unsecured loans, Mortgage & Motor Vehicle", "pid": 380, "exc": "Errors in Encompass (Mortgage Loans)", "rec": "Update credit policy to make clear distinctions between the various category of loans", "find": "We reviewed a sample of twenty-five mortgage loans and noted that anomalies as follows:A. Five JMD mortgage loans totalling JM$87,045,000.00 were incorrectly coded as USD loans, in Encompass. The Auditor inspected the customers' records in Signature 10 and confirmed that the loans were disbursed in JMD, in all five instances. The matter was raised with Management, who indicated that the issues highlighted were errors.BorrowerCustomer Info File NumberBorrower First NameBorrower Last Name Loan PurposeCurrency of Mortgage Loan in EncompassActual Loan Amount in Signature 10JM$Date approved (mm/dd/", "owner": "Paul Elliott", "rating": "Moderate", "status": "Resolved", "issue": "2024-01-03", "due": "2024-03-30", "first": "Jan '24", "last": "Jan '24", "months": 1, "tl": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {"code": "VMBS-Loans-2022 - VMBS - Unsecured loans, Mortgage & Motor Vehicle", "pid": 380, "exc": "Loan amount exceeds approver's limit", "rec": "Colloborate with Group ICT to ensure that loan approvers cannot exceed their limit", "find": "We reviewed a sample of twenty-five mortgage loans to determine if loans were being approved by the appropriate individuals, within their authorised limits. The Auditor identified two instances in which the value of the loan exceeded the approvers limit. The total value of these loans was US$ 1,075,800.00 and they had a Jamaican equivalent of JM $164,167,080.00. Last nameFirst name Loan PurposeCurrencyLoan amountUS$Loan amount inJM $ Date Approved (mm/dd/yyyy)ApproverApprover LimitJM$HopeJohnson ConstructionUS Dollars$550,800.00$84,052,080.00 01/28/2022Michael Verley, Senior Manager Credit Ris", "owner": "Paul Elliott", "rating": "High", "status": "Resolved", "issue": "2024-01-03", "due": "2023-12-31", "first": "Jan '24", "last": "Jan '24", "months": 1, "tl": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {"code": "VMBS-Loans-2022 - VMBS - Unsecured loans, Mortgage & Motor Vehicle", "pid": 380, "exc": "Procedure guides overdue for updates", "rec": "Streamline the process for updating procedure documents- Mortgages", "find": "Mortgage Loans The Auditor retrieved the Mortgage Loans Processing Guide from VM Appy. From an inspection, it was noted that the document was last updated in 2002. The matter was discussed with Management, where it was explained that an updated document is currently being drafted and given the extent of the updates that are required, it was decided that there will be several procedure documents for mortgages. Consumer Loans The Auditor inspected both the Auto Loans Processing Guide and the Unsecured Loans Processing Guide and note that neither of the two documents were updated every two years,", "owner": "Paul Elliott", "rating": "High", "status": "Resolved", "issue": "2024-01-03", "due": "2024-03-31", "first": "Jan '24", "last": "Jan '24", "months": 1, "tl": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}], "er": [{"name": "BCM Testing performed within last 12 months", "target": 2.0, "target_raw": 2, "tol": 2, "lim": 2, "s": [null, null, null, null, null, 1.0, null, 2.0, null, null, null, null, null, null, null, null, null, null, 2.0, null, null, 1.0, null, null, null, null, null, null, null], "bands": ["Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target"], "isPct": false}, {"name": "Audits completed YTD rated B or higher", "target": null, "target_raw": "B", "tol": 0.75, "lim": 0.85, "s": [null, 1.0, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], "bands": ["Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target"], "isPct": false}, {"name": "Member new accounts within SLA - VMBS", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [0.7774, 0.7696, null, 0.7811, 0.8129, 0.7582, 0.7663, 0.7905, 0.8068, 0.7582, 0.8156, 0.7811, 0.7989, 0.7863, 0.7419, 0.7703, 0.7581, 0.7776, null, null, 0.7855044074436827, 0.7731, 0.8176, 0.805, 0.6729, 0.8356, 0.98, 0.96, 0.96], "bands": ["Tolerance", "Tolerance", "Target", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Target", "Target", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Limit", "Limit", "Limit"], "isPct": true}, {"name": "Member new accounts within SLA - UK VMBS", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [0.7427, null, null, 0.7772, 0.742, 0.786, 0.8807, 0.8269, 0.774, 0.7429, 0.7337, 0.4516, 0.8143, 0.8132, 0.756, 0.837, 0.7536, 0.7411, 0.9422, 0.7864, 0.8755, 0.8181, 0.9326, 0.8917, 0.8538, 0.9172, 0.922, 0.8906, 0.7703], "bands": ["Tolerance", null, "Target", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance"], "isPct": true}, {"name": "Customer Credits - Corporate Salaries", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [1.0, 0.98, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], "bands": ["Target", "Limit", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target"], "isPct": true}, {"name": "Customer Credits - Pensions", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [0.99, 0.9879, 0.99, 0.99, 0.99, 1.0, 1.0, 1.0, 1.0, 0.9895, 0.99, 0.99, 0.99, 0.9916, 0.9877, 0.99, 0.992, 0.9899, 0.99, 0.9916, 0.9908, 0.99, 0.9917, 0.9923, 0.9912, 0.9767, 0.9917, 0.991, 0.9907], "bands": ["Limit", "Limit", "Limit", "Limit", "Limit", "Target", "Target", "Target", "Target", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit"], "isPct": true}, {"name": "Member payments within SLA - VMBS", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [0.9647, 0.9755, 0.9461, 0.9537, 0.9637, 0.9003, 0.9, 0.9784, 0.9791, 0.9646, 0.9753, 0.9482, 0.9512, 0.9717, 0.972, 0.974, 0.9671, 0.944, 0.956, 0.9571, 0.924, 0.9, 0.9142, 0.8005, 0.8561, 0.9037, 0.8912, 0.9129, 0.9636], "bands": ["Limit", "Limit", "Tolerance", "Limit", "Limit", "Tolerance", "Tolerance", "Limit", "Limit", "Limit", "Limit", "Tolerance", "Limit", "Limit", "Limit", "Limit", "Limit", "Tolerance", "Limit", "Limit", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Limit"], "isPct": true}, {"name": "Loan Disbursements within SLA - VMBS", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [0.98, 0.98, 1.0, 1.0, 0.9866666666666667, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9895666666666667, 1.0, 1.0, 1.0, 0.9899999999999999, 0.9500000000000001, 1.0, 0.98, 0.9866666666666667, 0.9133, 0.9567, 0.9533333333333333, 0.9733333333333333, 0.9866666666666667, 1.0, 0.9999, 1.0], "bands": ["Limit", "Limit", "Target", "Target", "Limit", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Limit", "Target", "Target", "Target", "Limit", "Limit", "Target", "Limit", "Limit", "Tolerance", "Limit", "Limit", "Limit", "Limit", "Target", "Target", "Target"], "isPct": true}, {"name": "Insurance Renewal", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [null, 1.0, null, null, null, null, null, null, null, null, null, null, null, 1.0, null, null, null, null, null, null, null, null, null, null, null, null, 1.0, null, null], "bands": ["Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target"], "isPct": true}, {"name": "Statement Mail Out - VMBS", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [0.9945, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9996, null, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.0, 0.9922, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999], "bands": ["Limit", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Limit", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Tolerance", "Limit", "Target", "Target", "Target", "Target", "Target"], "isPct": true}, {"name": "Transaction delivery failure - potential loss ($)", "target": 6800000.0, "target_raw": 6800000, "tol": 13500000, "lim": 15000000, "s": [503379.9, 1534921.11, 1569343.9940000002, 1714267.18, 1861167.79, 2792408.47, 2944579.29, 2950868.69, 4301305.28, 4299553.38, 3672069.38, 4679184.08, 531838.83, 535585.9500000001, 853708.83, 875286.66, 772931.4800000001, 777311.98, 1301080.05, 725307.79, 1379493.58, 2788263.2, 3255729.17, 3600313.18, 2527.75, 34027.75, 41663.39, 189847.9, 366668.8], "bands": ["Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Tolerance", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target", "Target"], "isPct": false}, {"name": "Member requests to Branch Support resolved", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], "bands": ["Target", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], "isPct": true}, {"name": "Process control compliance across branches", "target": 0.9999, "target_raw": 0.9999, "tol": 0.95, "lim": 0.97, "s": [0.966, null, null, null, null, null, null, null, null, null, null, null, 0.972, 0.98, 0.977, 0.97, 0.966, 0.964, 0.972, 0.967, 0.971, 0.97, 0.97, 0.96, 0.976, 0.971, 0.968, 0.97, 0.979], "bands": ["Limit", null, null, null, null, null, null, null, null, null, null, null, "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit", "Limit"], "isPct": true}, {"name": "Prior year reconciliation balances cleared", "target": 0.95, "target_raw": 0.95, "tol": 0.9999, "lim": 0.97, "s": [null, null, null, null, null, null, null, null, null, null, null, null, 0.5968, 0.5912, 0.7036, 0.7835, 0.7871, 0.7955, 0.7967, 0.7967, 0.7967, 0.7967, 0.7967, null, 0.4195, 0.6304, 0.8271, 0.7852, 0.8104], "bands": [null, null, null, null, null, null, null, null, null, null, null, null, "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Target", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance"], "isPct": true}, {"name": "Current year VMBS recons within threshold", "target": 0.85, "target_raw": 0.85, "tol": 0.82, "lim": 0.85, "s": [null, null, null, null, null, null, null, null, null, null, null, null, 1.0, 1.0, 0.88, 0.88, 0.88, 0.88, 0.75, 0.75, 0.75, 0.75, 0.75, null, 0.8571, 0.88, 0.846, 0.85, 0.85], "bands": [null, null, null, null, null, null, null, null, null, null, null, null, "Target", "Target", "Limit", "Limit", "Limit", "Limit", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Tolerance", "Target", "Target", "Target", "Limit", "Target", "Target"], "isPct": true}], "gov": [{"p": "Jan '24", "int": 13, "ext": 1, "tot": 14}, {"p": "Feb '24", "int": 13, "ext": 1, "tot": 14}, {"p": "Mar '24", "int": 16, "ext": 1, "tot": 17}, {"p": "Apr '24", "int": 15, "ext": 1, "tot": 16}, {"p": "May '24", "int": 13, "ext": 1, "tot": 14}, {"p": "Jun '24", "int": 13, "ext": 1, "tot": 14}, {"p": "Jul '24", "int": 14, "ext": 1, "tot": 15}, {"p": "Aug '24", "int": 17, "ext": 1, "tot": 18}, {"p": "Sep '24", "int": 18, "ext": 1, "tot": 19}, {"p": "Oct '24", "int": 12, "ext": 1, "tot": 13}, {"p": "Nov '24", "int": 15, "ext": 13, "tot": 28}, {"p": "Dec '24", "int": 14, "ext": 18, "tot": 32}, {"p": "Jan '25", "int": 12, "ext": 11, "tot": 23}, {"p": "Feb '25", "int": 12, "ext": 7, "tot": 19}, {"p": "Mar '25", "int": 16, "ext": 7, "tot": 23}, {"p": "Apr '25", "int": 12, "ext": 7, "tot": 19}, {"p": "May '25", "int": 13, "ext": 7, "tot": 20}, {"p": "Jun '25", "int": 13, "ext": 7, "tot": 20}, {"p": "Jul '25", "int": 13, "ext": 7, "tot": 20}, {"p": "Aug '25", "int": 10, "ext": 8, "tot": 18}, {"p": "Sep '25", "int": 10, "ext": 8, "tot": 18}, {"p": "Oct '25", "int": 10, "ext": 9, "tot": 19}, {"p": "Nov '25", "int": 10, "ext": 12, "tot": 22}, {"p": "Dec '25", "int": 12, "ext": 19, "tot": 31}, {"p": "Jan '26", "int": 4, "ext": 12, "tot": 16}, {"p": "Feb '26", "int": 4, "ext": 16, "tot": 20}, {"p": "Mar '26", "int": 6, "ext": 11, "tot": 17}, {"p": "Apr '26", "int": 3, "ext": 12, "tot": 15}, {"p": "May '26", "int": 1, "ext": 2, "tot": 3}], "pfl": [{"p": "Jan '24", "pj": 3206393.312, "rj": 406269.49, "aj": 494734.98000000004, "n": 9}, {"p": "Feb '24", "pj": 4998156.418, "rj": 438852.27999999997, "aj": 715559.49, "n": 17}, {"p": "Mar '24", "pj": 5569349.954, "rj": 573355.61, "aj": 761504.48, "n": 19}, {"p": "Apr '24", "pj": 6744049.061000001, "rj": 780802.02, "aj": 895791.9400000001, "n": 21}, {"p": "May '24", "pj": 0, "rj": 0, "aj": 0, "n": 24}, {"p": "Jun '24", "pj": 10468731.342, "rj": 832085.03, "aj": 1726689.2600000002, "n": 28}, {"p": "Jul '24", "pj": 11036440.408000002, "rj": 834609.9400000001, "aj": 1862677.1000000003, "n": 33}, {"p": "Aug '24", "pj": 11050017.741, "rj": 834609.9400000001, "aj": 1865106.4100000004, "n": 35}, {"p": "Sep '24", "pj": 17118649.402999997, "rj": 1064609.94, "aj": 3207838.1000000006, "n": 40}, {"p": "Oct '24", "pj": 17143278.755000003, "rj": 1084016.0499999998, "aj": 3202983.39, "n": 44}, {"p": "Nov '24", "pj": 16736765.117, "rj": 1697343.6099999999, "aj": 2789898.42, "n": 46}, {"p": "Dec '24", "pj": 21131816.957000002, "rj": 1872895.75, "aj": 3611303.21, "n": 49}, {"p": "Jan '25", "pj": 2122028.1900000004, "rj": 7471.33, "aj": 522835.68000000005, "n": 10}, {"p": "Feb '25", "pj": 2137748.3400000003, "rj": 7471.33, "aj": 526582.8, "n": 13}, {"p": "Mar '25", "pj": 3410137.2600000002, "rj": 7471.33, "aj": 844671.48, "n": 16}, {"p": "Apr '25", "pj": 3444727.8500000006, "rj": 8689.19, "aj": 848197.1600000001, "n": 19}, {"p": "May '25", "pj": 3351291.2600000002, "rj": 113789.78, "aj": 745663.4800000001, "n": 21}, {"p": "Jun '25", "pj": 3370265.3800000004, "rj": 113789.78, "aj": 750528.0200000001, "n": 24}, {"p": "Jul '25", "pj": 3906937.9160000007, "rj": 215720.03, "aj": 652899.2600000001, "n": 27}, {"p": "Aug '25", "pj": 3483060.49, "rj": 218254.11, "aj": 700996.79, "n": 31}, {"p": "Sep '25", "pj": 6099803.65, "rj": 218254.11, "aj": 1355182.58, "n": 33}, {"p": "Oct '25", "pj": 11734429.130000003, "rj": 218254.11, "aj": 2763801.2, "n": 37}, {"p": "Nov '25", "pj": 15342328.270000001, "rj": 860728.99, "aj": 3231342.6700000004, "n": 43}, {"p": "Dec '25", "pj": 19142830.8829, "rj": 1592061.9299999997, "aj": 3583638.91, "n": 50}, {"p": "Jan '26", "pj": 17752.0, "rj": 2547, "aj": 2527.75, "n": 7}, {"p": "Feb '26", "pj": 143752.0, "rj": 2547, "aj": 34027.75, "n": 9}, {"p": "Mar '26", "pj": 169352.63, "rj": 4959.6900000000005, "aj": 37603.39, "n": 12}, {"p": "Apr '26", "pj": 544370.652, "rj": 83098.61, "aj": 35075.64, "n": 16}, {"p": "May '26", "pj": 778502.108, "rj": 96245.61, "aj": 41032.16, "n": 21}]};
+
+const BAND = {
+  Target:    { label:"On / Ahead of Target", color:"#0E8A4D", bg:"#E5F4EC" },
+  Limit:     { label:"Within Limit",         color:"#A07208", bg:"#FBF2DC" },
+  Tolerance: { label:"Below Target",         color:"#8E0E1F", bg:"#F9E2E5" },
+  Breach:    { label:"Breach",               color:"#8E0E1F", bg:"#F9E2E5" },
+};
+const heatColor = v => v==null ? "#EFE9E6" : v>=.95 ? "#0E8A4D" : v>=.90 ? "#E3B341" : v>=.80 ? "#E07B00" : "#B5142A";
+const heatLabel = v => v==null ? "Not tracked" : v>=.95 ? "World Class" : v>=.90 ? "Industry Average" : v>=.80 ? "Non-Competitive" : "Unacceptable";
+const RATING = {
+  "Grade 1 - Fundamental": { c:"#8E0E1F", bg:"#F9E2E5" },
+  "Grade 2 - Significant": { c:"#C75F00", bg:"#FCEBD9" },
+  "High":                  { c:"#8E0E1F", bg:"#F9E2E5" },
+  "Moderate":              { c:"#A07208", bg:"#FBF2DC" },
+  "Improvement Opportunity": { c:"#0E8A4D", bg:"#E5F4EC" },
+  "Unrated":               { c:"#8A7E7A", bg:"#F1ECE9" },
+};
+const STATUSC = {
+  "Past Due":  { c:"#8E0E1F", bg:"#F9E2E5" },
+  "Open":      { c:"#A07208", bg:"#FBF2DC" },
+  "Resolved":  { c:"#0E8A4D", bg:"#E5F4EC" },
+};
+
+const { useState, useMemo, useEffect } = React;
+
+const ls = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
+};
+
+const fmtPct = v => (v==null || isNaN(v)) ? "—" : (v*100).toFixed(1) + "%";
+const fmtNum = v => (v==null || isNaN(v)) ? "—" : Number(v).toLocaleString(undefined,{maximumFractionDigits:0});
+const fmtDate = s => { if(!s) return "—"; const d=new Date(s); return isNaN(d)? s : d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); };
+
+function dl(filename, blob){
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1500);
+  } catch(e){ try { window.open(URL.createObjectURL(blob)); } catch(err){ alert("Download blocked in this preview. Open the app in a full browser tab."); } }
+}
+
+/* ===== reusable bits ===== */
+function StatPill({ status }){
+  const s = STATUSC[status] || STATUSC.Open;
+  return <span className="statpill" style={{ background:s.bg, color:s.c }}>{status}</span>;
+}
+function RatingPill({ rating }){
+  const r = RATING[rating] || RATING.Unrated;
+  return <span className="statpill" style={{ background:r.bg, color:r.c }}>{rating}</span>;
+}
+
+/* ===== AUDIT screens ===== */
+function auditCounts(list){
+  const c = { "Past Due":0, "Open":0, "Resolved":0 };
+  list.forEach(a => { c[a.status] = (c[a.status]||0)+1; });
+  return c;
+}
+
+function VMLogo({ h = 26 }) {
+  return (
+    <svg height={h} viewBox="0 0 500 340" fill="none" style={{ display:"block", flexShrink:0 }}>
+      <path d="M14 130 L48 74 L112 280 L213 76 L272 204 L341 76 L446 280 L486 216"
+        stroke="#E4012B" strokeWidth="42" strokeLinejoin="miter" strokeMiterlimit="3" />
+    </svg>
+  );
+}
+
+function App() {
+  const P = DATA.periods;                 // short labels
+  const LAST = P.length - 1;
+  const [mode, setMode] = useState("all");      // "all" | "audit" | "er"
+  const [tab, setTab] = useState("pulse");          // pulse | register | history | report | entry
+  const [admin, setAdmin] = useState(() => { try { return sessionStorage.getItem("vmbs_admin")==="1"; } catch(e){ return false; } });
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwTry, setPwTry] = useState(""); const [pwErr, setPwErr] = useState(""); const [pwNext, setPwNext] = useState(null);
+  const [open, setOpen] = useState(null);           // expanded audit/er detail
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [ratingFilter, setRatingFilter] = useState(null);
+  const [cell, setCell] = useState(null);           // heatmap tap
+  const [repMode, setRepMode] = useState("current");
+
+  // overrides for entry (admin only) persisted locally
+  const [auditOvr, setAuditOvr] = useState(() => ls.get("vmbsra_audit_ovr", {}));
+  const [erOvr, setErOvr] = useState(() => ls.get("vmbsra_er_ovr", {}));
+  const [adminPw, setAdminPwState] = useState(() => ls.get("vmbsra_pw", "pa55w0rd"));
+  const [activity, setActivity] = useState(() => ls.get("vmbsra_log", []));
+  const logAct = (action) => {
+    const next = [{ when:new Date().toISOString(), action }, ...activity].slice(0,150);
+    setActivity(next); ls.set("vmbsra_log", next);
+  };
+
+  /* effective audit list */
+  const auditList = useMemo(() => DATA.audit.map(a => {
+    const o = auditOvr[a.code + "|" + a.exc];
+    return o ? { ...a, ...o } : a;
+  }), [auditOvr]);
+
+  const erList = useMemo(() => DATA.er.map(m => {
+    const o = erOvr[m.name];
+    return o ? { ...m, s: m.s.map((v,i)=> (o.s && o.s[i]!=null)? o.s[i] : v) } : m;
+  }), [erOvr]);
+
+  const aCounts = useMemo(() => auditCounts(auditList), [auditList]);
+  const openAudit = auditList.filter(a => a.status !== "Resolved");
+
+  /* ER current snapshot — latest non-null actual per measure */
+  const erSnap = useMemo(() => erList.map(m => {
+    let li = -1; for (let i=m.s.length-1;i>=0;i--){ if(m.s[i]!=null){ li=i; break; } }
+    const band = li>=0 ? m.bands[li] : null;
+    return { ...m, latest: li>=0? m.s[li]:null, latestIdx: li, band };
+  }), [erList]);
+  const erBandCounts = useMemo(() => {
+    const c = { Target:0, Limit:0, Tolerance:0 };
+    erSnap.forEach(m => { const b = m.band==="Breach"?"Tolerance":m.band; if(c[b]!=null) c[b]++; }); return c;
+  }, [erSnap]);
+
+  const requireAdmin = (next) => { if(admin){ setTab(next); } else { setPwNext(next); setPwOpen(true); } };
+
+  /* ============ AUDIT: PULSE ============ */
+  const AuditPulse = (
+    <div>
+      <div className="hero">
+        <div className="row between base"><span className="eyebrow">OPEN AUDIT POINTS</span><span className="dim12">as at {P[LAST]}</span></div>
+        <div className="big">{openAudit.length}</div>
+        <div className="dim13">{aCounts["Past Due"]} past due · {aCounts["Open"]} within timeline · {aCounts["Resolved"]} resolved to date</div>
+      </div>
+
+      <div className="grid-status">
+        {[["Past Due","Past Due"],["Open","Open"],["Resolved","Resolved"]].map(([k,lab]) => {
+          const s = STATUSC[k];
+          return (
+            <button key={k} className="card btncard" onClick={()=>{ setStatusFilter(k); setRatingFilter(null); setOpen(null); setTab("register"); }}>
+              <div className="num" style={{ color:s.c }}>{aCounts[k]||0}</div>
+              <div className="sub" style={{ marginTop:2 }}>{lab}</div>
+            </button>
+          );
+        })}
+        <div className="card">
+          <div className="num">{auditList.length}</div>
+          <div className="sub" style={{ marginTop:2 }}>Total tracked</div>
+        </div>
+      </div>
+
+      <div className="h2l">Open audit points</div>
+      <div className="grid-cats">
+        {openAudit.length === 0 ? <div className="card"><div className="sub13">No open audit points — all VMBS items resolved.</div></div> :
+          openAudit.map((a,i) => {
+            const s = STATUSC[a.status];
+            return (
+              <button key={i} className="card btncard" onClick={()=>{ setStatusFilter(null); setRatingFilter(null); setOpen(a.code+"|"+a.exc); setTab("register"); }}>
+                <div className="row between mid">
+                  <div style={{ flex:1, paddingRight:10 }}>
+                    <div className="t14">{a.exc}</div>
+                    <div className="sub" style={{ marginTop:3 }}>{a.owner} · {a.rating} · due {fmtDate(a.due)}</div>
+                  </div>
+                  <span className="statpill" style={{ background:s.bg, color:s.c }}>{a.status}</span>
+                </div>
+              </button>
+            );
+          })}
+      </div>
+      <div style={{ fontSize:11, color:"#A89C97", textAlign:"center", margin:"22px 0 8px" }}>
+        VMBS Operational Risk &amp; Audit Register · {P[0]} – {P[LAST]} · Owner: Nicola Anderson, COO
+      </div>
+    </div>
+  );
+
+  /* ============ ER: PULSE ============ */
+  const totPotLoss = DATA.pfl[DATA.pfl.length-1];
+  const ErPulse = (
+    <div>
+      <div className="hero">
+        <div className="row between base"><span className="eyebrow">ON / AHEAD OF TARGET</span><span className="dim12">as at {P[LAST]}</span></div>
+        <div className="big">{erBandCounts.Target}<span style={{ fontSize:24, opacity:.7 }}>/{erSnap.length}</span></div>
+        <div className="dim13">{erBandCounts.Limit} within limit · {erBandCounts.Tolerance} below target</div>
+      </div>
+
+      <div className="grid-status">
+        <div className="card"><div className="num" style={{ color:"#0E8A4D" }}>{erBandCounts.Target}</div><div className="sub" style={{ marginTop:2 }}>On / Ahead</div></div>
+        <div className="card"><div className="num" style={{ color:"#A07208" }}>{erBandCounts.Limit}</div><div className="sub" style={{ marginTop:2 }}>Within Limit</div></div>
+        <div className="card"><div className="num" style={{ color:"#8E0E1F" }}>{erBandCounts.Tolerance}</div><div className="sub" style={{ marginTop:2 }}>Below Target</div></div>
+        <div className="card"><div className="num16">{fmtNum(totPotLoss && totPotLoss.pj)}</div><div className="sub" style={{ marginTop:2 }}>Potential loss JMD ({P[LAST]})</div></div>
+      </div>
+
+      <div className="h2l">Operational risk measures</div>
+      <div className="grid-measures">
+        {erSnap.map((m,i) => {
+          const b = BAND[m.band] || BAND.Target;
+          return (
+            <button key={i} className="erbtn" onClick={()=>{ setOpen(m.name); setTab("register"); }}>
+              <div className="row between base">
+                <div className="t13" style={{ flex:1, paddingRight:8 }}>{m.name}</div>
+                <div className="num16" style={{ color:b.color }}>{m.isPct? fmtPct(m.latest) : fmtNum(m.latest)}</div>
+              </div>
+              <div className="row between mid" style={{ marginTop:6 }}>
+                <span className="statpill" style={{ background:b.bg, color:b.color }}>{b.label}</span>
+                <span className="sub">target {m.isPct? fmtPct(m.target) : (m.target_raw||"—")}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ fontSize:11, color:"#A89C97", textAlign:"center", margin:"22px 0 8px" }}>
+        VMBS Operational Risk &amp; Audit Register · {P[0]} – {P[LAST]} · Owner: Nicola Anderson, COO
+      </div>
+    </div>
+  );
+
+  /* ============ REGISTER (list + detail) ============ */
+  const auditFiltered = auditList.filter(a =>
+    (!statusFilter || a.status===statusFilter) && (!ratingFilter || a.rating===ratingFilter));
+
+  const AuditRegister = (
+    <div>
+      <div className="chips">
+        <button className={"chip"+(!statusFilter&&!ratingFilter?" on":"")} onClick={()=>{ setStatusFilter(null); setRatingFilter(null); }}>All ({auditList.length})</button>
+        {["Past Due","Open","Resolved"].map(s => (
+          <button key={s} className={"chip"+(statusFilter===s?" on":"")} onClick={()=>{ setStatusFilter(statusFilter===s?null:s); setRatingFilter(null); }}>{s} ({aCounts[s]||0})</button>
+        ))}
+      </div>
+      <div className="grid-measures" style={{ marginTop:4 }}>
+        {auditFiltered.map((a,i) => {
+          const id = a.code+"|"+a.exc; const isOpen = open===id;
+          return (
+            <div key={i} className="apt">
+              <button className="rowbtn" style={{ padding:0 }} onClick={()=>setOpen(isOpen?null:id)}>
+                <div style={{ flex:1 }}>
+                  <div className="row between base"><div className="t13" style={{ flex:1, paddingRight:8 }}>{a.exc}</div><StatPill status={a.status}/></div>
+                  <div className="aptmeta"><RatingPill rating={a.rating}/><span>{a.owner}</span></div>
+                </div>
+              </button>
+              {isOpen && (
+                <div>
+                  <table className="kvtable">
+                    <tbody>
+                      <tr><td>Project</td><td>{a.code}</td></tr>
+                      <tr><td>Recommendation</td><td>{a.rec || "—"}</td></tr>
+                      {a.find && <tr><td>Findings</td><td>{a.find}</td></tr>}
+                      <tr><td>Owner</td><td>{a.owner}</td></tr>
+                      <tr><td>Risk rating</td><td>{a.rating}</td></tr>
+                      <tr><td>Issue date</td><td>{fmtDate(a.issue)}</td></tr>
+                      <tr><td>Due date</td><td>{fmtDate(a.due)}</td></tr>
+                      <tr><td>Tracked</td><td>{a.first} → {a.last} ({a.months} mo)</td></tr>
+                    </tbody>
+                  </table>
+                  <div className="sub" style={{ marginTop:8, marginBottom:3 }}>Open across period</div>
+                  <div style={{ display:"flex", gap:2, flexWrap:"wrap" }}>
+                    {a.tl.map((v,mi)=>(<div key={mi} title={P[mi]} style={{ width:14, height:14, borderRadius:3, background: v? (STATUSC[a.status].c):"#EEE7E3" }}/>))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {auditFiltered.length===0 && <div className="sub" style={{ textAlign:"center", padding:20 }}>No points match this filter.</div>}
+      </div>
+    </div>
+  );
+
+  const ErRegister = (
+    <div>
+      <div className="grid-measures">
+        {erSnap.map((m,i) => {
+          const isOpen = open===m.name; const b = BAND[m.band]||BAND.Target;
+          const vals = m.s.filter(x=>x!=null);
+          const mx = Math.max(...vals.map(v=>m.isPct?v:v), m.isPct?1:1);
+          return (
+            <div key={i} className="apt">
+              <button className="rowbtn" style={{ padding:0 }} onClick={()=>setOpen(isOpen?null:m.name)}>
+                <div style={{ flex:1 }}>
+                  <div className="row between base"><div className="t13" style={{ flex:1, paddingRight:8 }}>{m.name}</div>
+                    <div className="num16" style={{ color:b.color }}>{m.isPct? fmtPct(m.latest):fmtNum(m.latest)}</div></div>
+                  <div className="aptmeta"><span className="statpill" style={{ background:b.bg, color:b.color }}>{b.label}</span><span>target {m.isPct?fmtPct(m.target):(m.target_raw||"—")}</span></div>
+                </div>
+              </button>
+              {isOpen && (
+                <div>
+                  <div className="spark">
+                    {m.s.map((v,mi)=>{
+                      if(v==null) return <div key={mi} className="sparkbar" style={{ background:"#F1ECE9", height:"4px" }} title={P[mi]+": n/a"}/>;
+                      const bb = BAND[m.bands[mi]]||BAND.Target;
+                      const norm = m.isPct ? Math.max(.06, v) : Math.max(.06, v/(mx||1));
+                      return <div key={mi} className="sparkbar" style={{ background:bb.color, height:(norm*34)+"px" }} title={P[mi]+": "+(m.isPct?fmtPct(v):fmtNum(v))}/>;
+                    })}
+                  </div>
+                  <table className="kvtable">
+                    <tbody>
+                      <tr><td>Target</td><td>{m.isPct?fmtPct(m.target):(m.target_raw||"—")}</td></tr>
+                      <tr><td>Tolerance</td><td>{m.tol!=null? (m.isPct?fmtPct(m.tol):m.tol):"—"}</td></tr>
+                      <tr><td>Limit</td><td>{m.lim!=null? (m.isPct?fmtPct(m.lim):m.lim):"—"}</td></tr>
+                      <tr><td>Latest ({P[m.latestIdx]})</td><td>{m.isPct?fmtPct(m.latest):fmtNum(m.latest)}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  /* ============ HISTORY (heatmap) ============ */
+  const auditHM = useMemo(() => {
+    const rank = { "Resolved":0, "Open":1, "Past Due":2 };
+    return [...auditList].sort((a,b) => {
+      if(rank[a.status] !== rank[b.status]) return rank[a.status]-rank[b.status];
+      // within group: fewer months open = healthier, sort ascending
+      return a.months - b.months;
+    });
+  }, [auditList]);
+
+  const AuditHistory = (
+    <div>
+      <div className="h2l">Audit points open over time</div>
+      <div className="sub13" style={{ margin:"0 4px 10px" }}>Sorted resolved → open → past due, so the concentration of unresolved risk sits at the foot of the grid.</div>
+      <div className="legend">
+        <span><i className="sw" style={{ background:"#8E0E1F" }}/>Past due</span>
+        <span><i className="sw" style={{ background:"#A07208" }}/>Open</span>
+        <span><i className="sw" style={{ background:"#0E8A4D" }}/>Resolved month</span>
+        <span><i className="sw" style={{ background:"#EEE7E3" }}/>Not open</span>
+      </div>
+      <div style={{ overflowX:"auto" }}>
+        <div className="hm">
+          <div className="row" style={{ marginBottom:2 }}>
+            <div className="hmname b">Audit point</div>
+            {P.map((p,i)=>(<div key={i} className="hmmon">{p.split(" ")[0][0]}</div>))}
+          </div>
+          {auditHM.map((a,i)=>(
+            <div key={i} className="row" style={{ alignItems:"center" }}>
+              <div className="hmname" title={a.exc}>{a.exc}</div>
+              {a.tl.map((v,mi)=>{
+                let bg = "#EEE7E3";
+                if(v){ bg = a.status==="Past Due"? "#8E0E1F":"#A07208"; }
+                else if(mi>0 && a.tl[mi-1]===1 && a.last===P[mi-1]) bg="#0E8A4D";
+                return <div key={mi} className="hmcell" style={{ background:bg }} onClick={()=>setCell({a, mi})} title={a.exc+" · "+P[mi]}/>;
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      {cell && cell.a && <div className="notebox"><b>{cell.a.exc}</b><br/>{P[cell.mi]} · {cell.a.tl[cell.mi]? "Open this month":"Not on register"} · {cell.a.owner}</div>}
+    </div>
+  );
+
+  const erHM = useMemo(() => {
+    const score = m => { // share of populated months that were healthy (>=95% for pct; on-target band otherwise)
+      let good=0, tot=0;
+      m.s.forEach((v,i)=>{ if(v!=null){ tot++; if(m.isPct ? v>=.95 : m.bands[i]==="Target") good++; } });
+      return tot? good/tot : -1;
+    };
+    return [...erList].map(m=>({m,sc:score(m)})).sort((a,b)=>b.sc-a.sc).map(x=>x.m);
+  }, [erList]);
+
+  const ErHistory = (
+    <div>
+      <div className="h2l">Operational risk performance — {P[0]} to {P[LAST]}</div>
+      <div className="sub13" style={{ margin:"0 4px 10px" }}>Sorted strongest → weakest, so consistently green measures band at the top and the trouble spots collect below.</div>
+      <div className="legend">
+        <span><i className="sw" style={{ background:"#0E8A4D" }}/>World Class ≥95%</span>
+        <span><i className="sw" style={{ background:"#E3B341" }}/>Industry Avg 90–95%</span>
+        <span><i className="sw" style={{ background:"#E07B00" }}/>Non-Competitive 80–90%</span>
+        <span><i className="sw" style={{ background:"#B5142A" }}/>Unacceptable &lt;80%</span>
+        <span><i className="sw" style={{ background:"#EFE9E6" }}/>Not tracked</span>
+      </div>
+      <div style={{ overflowX:"auto" }}>
+        <div className="hm">
+          <div className="row" style={{ marginBottom:2 }}>
+            <div className="hmname b">Measure</div>
+            {P.map((p,i)=>(<div key={i} className="hmmon">{p.split(" ")[0][0]}</div>))}
+          </div>
+          {erHM.map((m,i)=>(
+            <div key={i} className="row" style={{ alignItems:"center" }}>
+              <div className="hmname" title={m.name}>{m.name}</div>
+              {m.s.map((v,mi)=>{
+                let bg;
+                if(v==null) bg = "#EFE9E6";
+                else if(m.isPct) bg = heatColor(v);
+                else bg = (BAND[m.bands[mi]]||BAND.Target).color;
+                return <div key={mi} className="hmcell" style={{ background:bg }} onClick={()=>setCell({m, mi, v})} title={m.name+" · "+P[mi]+": "+(v==null?"n/a":(m.isPct?fmtPct(v):fmtNum(v)))}/>;
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      {cell && cell.m && <div className="notebox"><b>{cell.m.name}</b><br/>{P[cell.mi]} · {cell.v==null?"No data":(cell.m.isPct?fmtPct(cell.v):fmtNum(cell.v))} · {cell.v==null?"—":(cell.m.isPct?heatLabel(cell.v):(BAND[cell.m.bands[cell.mi]]||{label:"—"}).label)}</div>}
+    </div>
+  );
+
+  /* ============ REPORT ============ */
+  const buildPDF = () => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation:"landscape", unit:"pt", format:"a4" });
+      const W = doc.internal.pageSize.getWidth();
+      doc.setFillColor(228,1,43); doc.rect(0,0,W,54,"F");
+      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+      const title = mode==="audit"?"Audit Register":mode==="er"?"Operational Risk":"Operational Risk & Audit";
+      doc.text("VM Building Society — "+title, 28, 26);
+      doc.setFontSize(10); doc.setFont("helvetica","normal");
+      doc.text("As at "+P[LAST]+" · VMBS Operational Risk", 28, 42);
+
+      const erTable = (startY) => {
+        const rows = erSnap.map(m => [m.name, m.isPct?fmtPct(m.target):(m.target_raw||"—"), m.isPct?fmtPct(m.latest):fmtNum(m.latest), (BAND[m.band]||BAND.Target).label]);
+        doc.autoTable({ startY, head:[["Measure","Target","Latest","Band"]], body:rows,
+          styles:{ font:"helvetica", fontSize:8.5, cellPadding:4 },
+          headStyles:{ fillColor:[28,20,22], textColor:255 },
+          columnStyles:{ 0:{ cellWidth:360 } },
+          didParseCell:(d)=>{ if(d.section==="body" && d.column.index===3){ const bb=Object.values(BAND).find(x=>x.label===d.cell.raw); if(bb){ const h=bb.bg.match(/\w\w/g).map(x=>parseInt(x,16)); d.cell.styles.fillColor=h; } } } });
+      };
+      const auditTable = (startY) => {
+        const rows = auditList.map(a => [a.exc, a.rating, a.owner, a.status, fmtDate(a.due)]);
+        doc.autoTable({ startY, head:[["Audit Point","Rating","Owner","Status","Due"]], body:rows,
+          styles:{ font:"helvetica", fontSize:8, cellPadding:3, valign:"top" },
+          headStyles:{ fillColor:[28,20,22], textColor:255 },
+          columnStyles:{ 0:{ cellWidth:330 } },
+          didParseCell:(d)=>{ if(d.section==="body" && d.column.index===3){ const s=STATUSC[d.cell.raw]; if(s){ const h=s.bg.match(/\w\w/g).map(x=>parseInt(x,16)); d.cell.styles.fillColor=h; } } } });
+      };
+      if(mode==="audit"){ auditTable(64); }
+      else if(mode==="er"){ erTable(64); }
+      else {
+        doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(28,20,22);
+        doc.text("Enterprise Risk — Operational KRIs", 28, 70);
+        erTable(78);
+        doc.addPage("a4","landscape");
+        doc.setFillColor(228,1,43); doc.rect(0,0,W,54,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+        doc.text("VM Building Society — Audit Register", 28, 26);
+        doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.text("As at "+P[LAST]+" · VMBS", 28, 42);
+        auditTable(64);
+      }
+      const tag = mode==="audit"?"Audit":mode==="er"?"OpRisk":"OpRisk_Audit";
+      dl("VMBS_"+tag+"_"+P[LAST].replace(/[ ']/g,"")+".pdf", doc.output("blob"));
+    } catch(e){ alert("Could not build the PDF: "+e.message); }
+  };
+  const buildCSV = () => {
+    let csv;
+    const auditCsv = "Audit Point,Rating,Owner,Status,Issue Date,Due Date,First Seen,Last Seen\n" +
+      auditList.map(a => [a.exc,a.rating,a.owner,a.status,a.issue||"",a.due||"",a.first,a.last].map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(",")).join("\n");
+    const erCsv = "Measure,Target,Tolerance,Limit,"+P.join(",")+"\n" +
+      erList.map(m => [m.name, m.target_raw||"", m.tol||"", m.lim||"", ...m.s.map(v=>v==null?"":v)].map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(",")).join("\n");
+    if(mode==="audit") csv = auditCsv;
+    else if(mode==="er") csv = erCsv;
+    else csv = "ENTERPRISE RISK — OPERATIONAL KRIs\n"+erCsv+"\n\nAUDIT REGISTER\n"+auditCsv;
+    const tag = mode==="audit"?"Audit":mode==="er"?"OpRisk":"OpRisk_Audit";
+    dl("VMBS_"+tag+"_"+P[LAST].replace(/[ ']/g,"")+".csv", new Blob([csv],{type:"text/csv"}));
+  };
+
+  const Report = (
+    <div>
+      <div className="card">
+        <div className="t15">Download report</div>
+        <div className="sub13" style={{ marginTop:4, marginBottom:14 }}>
+          {mode==="audit" ? "Full VMBS audit register with rating, owner, status and due dates." : mode==="er" ? "Operational risk measures with target, latest actual and score band." : "Combined operational risk + audit register — both sections in one file."} As at {P[LAST]}.
+        </div>
+        <button className="cta shadow" onClick={buildPDF}>Download PDF</button>
+        <button className="cta2" onClick={buildCSV}>Download CSV (full history)</button>
+      </div>
+      <div className="card" style={{ marginTop:12 }}>
+        <div className="t14">What's in this view</div>
+        <table className="kvtable">
+          <tbody>
+            {mode!=="audit" && (<>
+              <tr><td>KRIs on / ahead</td><td>{erBandCounts.Target} of {erSnap.length}</td></tr>
+              <tr><td>KRIs below target</td><td>{erBandCounts.Tolerance}</td></tr>
+              <tr><td>Potential loss JMD</td><td>{fmtNum(totPotLoss && totPotLoss.pj)}</td></tr>
+            </>)}
+            {mode!=="er" && (<>
+              <tr><td>Open audit points</td><td>{openAudit.length} ({aCounts["Past Due"]} past due)</td></tr>
+              <tr><td>Resolved to date</td><td>{aCounts["Resolved"]}</td></tr>
+            </>)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  /* ============ ENTRY (admin) ============ */
+  const [eMeasure, setEMeasure] = useState(null);
+  const [eVal, setEVal] = useState("");
+  const [eMonth, setEMonth] = useState(LAST);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [eAudit, setEAudit] = useState(null);     // audit point id being edited
+  const [eStatus, setEStatus] = useState("");
+  const saveEr = () => {
+    if(eMeasure==null){ setSaveMsg("Pick a measure first."); return; }
+    const v = parseFloat(eVal); if(isNaN(v)){ setSaveMsg("Enter a number."); return; }
+    const m = erList.find(x=>x.name===eMeasure);
+    const val = m.isPct ? +(v/100).toFixed(4) : v;
+    const cur = erOvr[eMeasure] || { s:{} };
+    const s = { ...(cur.s||{}) }; s[eMonth] = val;
+    const next = { ...erOvr, [eMeasure]: { s } };
+    setErOvr(next); ls.set("vmbsra_er_ovr", next);
+    logAct("Updated ER measure “"+eMeasure+"” for "+P[eMonth]);
+    setSaveMsg("Saved "+eMeasure+" for "+P[eMonth]+" on this device. The workbook remains the official record.");
+  };
+  const saveAudit = () => {
+    if(!eAudit){ setSaveMsg("Pick an audit point first."); return; }
+    if(!eStatus){ setSaveMsg("Choose a status."); return; }
+    const next = { ...auditOvr, [eAudit]: { status:eStatus } };
+    setAuditOvr(next); ls.set("vmbsra_audit_ovr", next);
+    const exc = auditList.find(a=>(a.code+"|"+a.exc)===eAudit)?.exc || "point";
+    logAct("Set audit point “"+exc+"” to "+eStatus);
+    setSaveMsg("Marked “"+exc+"” as "+eStatus+" on this device. The Group Internal Audit register remains the official source.");
+  };
+  const [eKind, setEKind] = useState("er");
+  const entryKind = mode==="all" ? eKind : mode;
+  const Entry = (
+    <div>
+      <div className="card">
+        <div className="t15">Update {entryKind==="audit"?"audit point status":"risk measure"}</div>
+        <div className="sub13" style={{ marginTop:4, marginBottom:12 }}>Admin entry. Saves locally on this device; the master Excel workbook stays the official record.</div>
+        {mode==="all" && (
+          <div className="toggle" style={{ marginBottom:12 }}>
+            <button className={eKind==="er"?"on":""} onClick={()=>setEKind("er")}>Risk measure</button>
+            <button className={eKind==="audit"?"on":""} onClick={()=>setEKind("audit")}>Audit point</button>
+          </div>
+        )}
+        {entryKind==="er" ? (<>
+          <select className="sel" style={{ width:"100%", marginBottom:10 }} value={eMeasure||""} onChange={e=>setEMeasure(e.target.value||null)}>
+            <option value="">Select measure…</option>
+            {erList.map((m,i)=>(<option key={i} value={m.name}>{m.name}</option>))}
+          </select>
+          <div className="row gap8" style={{ marginBottom:10 }}>
+            <select className="sel" style={{ flex:1 }} value={eMonth} onChange={e=>setEMonth(+e.target.value)}>
+              {P.map((p,i)=>(<option key={i} value={i}>{p}</option>))}
+            </select>
+            <input className="numin" style={{ flex:1, width:"auto" }} placeholder={erList.find(x=>x.name===eMeasure)?.isPct?"%":"value"} value={eVal} onChange={e=>setEVal(e.target.value)} />
+          </div>
+          <button className="cta" onClick={saveEr}>Save</button>
+        </>) : (<>
+          <select className="sel" style={{ width:"100%", marginBottom:10 }} value={eAudit||""} onChange={e=>{ setEAudit(e.target.value||null); const a=auditList.find(x=>(x.code+"|"+x.exc)===e.target.value); setEStatus(a?a.status:""); }}>
+            <option value="">Select audit point…</option>
+            {auditList.map((a,i)=>(<option key={i} value={a.code+"|"+a.exc}>{a.exc}</option>))}
+          </select>
+          <select className="sel" style={{ width:"100%", marginBottom:10 }} value={eStatus} onChange={e=>setEStatus(e.target.value)}>
+            <option value="">Status…</option>
+            <option value="Past Due">Past Due</option>
+            <option value="Open">Open</option>
+            <option value="Resolved">Resolved</option>
+          </select>
+          <button className="cta" onClick={saveAudit}>Save status</button>
+          <div className="sub13" style={{ marginTop:10 }}>Status normally flows from the monthly Group Internal Audit register on re-import. Use this to reflect a change between cycles; the register stays the source of truth.</div>
+        </>)}
+        {saveMsg && <div className="okmsg" style={{ marginTop:10 }}>{saveMsg}</div>}
+      </div>
+    </div>
+  );
+
+  /* ============ SETTINGS (admin) ============ */
+  const [npw, setNpw] = useState(""); const [npw2, setNpw2] = useState(""); const [setMsg, setSetMsg] = useState("");
+  const changePw = () => {
+    if(npw.length < 4){ setSetMsg("Password must be at least 4 characters."); return; }
+    if(npw !== npw2){ setSetMsg("Passwords don't match."); return; }
+    setAdminPwState(npw); ls.set("vmbsra_pw", npw); logAct("Changed admin password");
+    setNpw(""); setNpw2(""); setSetMsg("Admin password updated on this device.");
+  };
+  const resetOvr = () => {
+    setAuditOvr({}); setErOvr({}); ls.set("vmbsra_audit_ovr", {}); ls.set("vmbsra_er_ovr", {});
+    logAct("Reset all local overrides to source data");
+    setSetMsg("All local edits cleared. Showing the original imported data.");
+  };
+  const nOvr = Object.keys(auditOvr).length + Object.keys(erOvr).length;
+  const Settings = (
+    <div>
+      <div className="card">
+        <div className="t15">Admin password</div>
+        <div className="sub13" style={{ marginTop:4, marginBottom:12 }}>Controls who can edit figures on this device.</div>
+        <input className="login-in" type="password" placeholder="New password" value={npw} onChange={e=>{ setNpw(e.target.value); setSetMsg(""); }} />
+        <input className="login-in" type="password" placeholder="Confirm new password" value={npw2} onChange={e=>{ setNpw2(e.target.value); setSetMsg(""); }} />
+        <button className="cta" onClick={changePw}>Update password</button>
+      </div>
+
+      <div className="card" style={{ marginTop:12 }}>
+        <div className="row between mid">
+          <div><div className="t15">Local edits</div><div className="sub13" style={{ marginTop:3 }}>{nOvr} override{nOvr===1?"":"s"} saved on this device</div></div>
+          <button className="minibtn warn" onClick={resetOvr} disabled={nOvr===0}>Reset to source</button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop:12 }}>
+        <div className="t15">Activity log</div>
+        <div className="sub13" style={{ marginTop:3, marginBottom:8 }}>Recent changes made in the app.</div>
+        {activity.length===0 ? <div className="sub" style={{ padding:"4px 0" }}>No activity recorded yet.</div> : (
+          <div>
+            {activity.slice(0,30).map((a,i)=>(
+              <div key={i} className="row between" style={{ padding:"7px 0", borderTop:i?"1px solid #F1ECE9":"none", gap:10 }}>
+                <div style={{ fontSize:12, flex:1 }}>{a.action}</div>
+                <div className="sub" style={{ whiteSpace:"nowrap" }}>{new Date(a.when).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ fontSize:11, color:"#A89C97", textAlign:"center", margin:"18px 0 8px" }}>
+        Edits are stored on this device only. The master Excel workbook is the official record.
+      </div>
+    </div>
+  );
+
+  /* ============ ALL: unified operational health ============ */
+  const AllPulse = (
+    <div>
+      <div className="hero">
+        <div className="row between base"><span className="eyebrow">OPERATIONAL HEALTH</span><span className="dim12">as at {P[LAST]}</span></div>
+        <div className="big">{erBandCounts.Target}<span style={{ fontSize:22, opacity:.65 }}>/{erSnap.length}</span> <span style={{ fontSize:22, opacity:.5 }}>·</span> {openAudit.length}<span style={{ fontSize:22, opacity:.65 }}> open</span></div>
+        <div className="dim13">{erBandCounts.Target} KRIs on/ahead of target · {openAudit.length} audit point{openAudit.length===1?"":"s"} open ({aCounts["Past Due"]} past due)</div>
+      </div>
+
+      <div className="h2l">Enterprise risk — performance score</div>
+      <div className="grid-status">
+        <div className="card"><div className="num" style={{ color:"#0E8A4D" }}>{erBandCounts.Target}</div><div className="sub" style={{ marginTop:2 }}>On / Ahead of Target</div></div>
+        <div className="card"><div className="num" style={{ color:"#A07208" }}>{erBandCounts.Limit}</div><div className="sub" style={{ marginTop:2 }}>Within Limit</div></div>
+        <div className="card"><div className="num" style={{ color:"#8E0E1F" }}>{erBandCounts.Tolerance}</div><div className="sub" style={{ marginTop:2 }}>Below Target</div></div>
+        <div className="card"><div className="num16">{fmtNum(totPotLoss && totPotLoss.pj)}</div><div className="sub" style={{ marginTop:2 }}>Potential loss JMD</div></div>
+      </div>
+
+      <div className="h2l">Audit register — status</div>
+      <div className="grid-status">
+        <button className="card btncard" onClick={()=>{ setStatusFilter("Past Due"); setRatingFilter(null); setOpen(null); setMode("audit"); setTab("register"); }}>
+          <div className="num" style={{ color:"#8E0E1F" }}>{aCounts["Past Due"]||0}</div><div className="sub" style={{ marginTop:2 }}>Past Due</div></button>
+        <button className="card btncard" onClick={()=>{ setStatusFilter("Open"); setRatingFilter(null); setOpen(null); setMode("audit"); setTab("register"); }}>
+          <div className="num" style={{ color:"#A07208" }}>{aCounts["Open"]||0}</div><div className="sub" style={{ marginTop:2 }}>Open</div></button>
+        <button className="card btncard" onClick={()=>{ setStatusFilter("Resolved"); setRatingFilter(null); setOpen(null); setMode("audit"); setTab("register"); }}>
+          <div className="num" style={{ color:"#0E8A4D" }}>{aCounts["Resolved"]||0}</div><div className="sub" style={{ marginTop:2 }}>Resolved</div></button>
+        <div className="card"><div className="num">{auditList.length}</div><div className="sub" style={{ marginTop:2 }}>Total tracked</div></div>
+      </div>
+
+      {openAudit.filter(a=>a.status==="Past Due").length>0 && (<div>
+        <div className="h2l">Needs attention · past due</div>
+        <div className="grid-measures">
+          {openAudit.filter(a=>a.status==="Past Due").map((a,i)=>(
+            <button key={i} className="erbtn" onClick={()=>{ setStatusFilter(null); setRatingFilter(null); setOpen(a.code+"|"+a.exc); setMode("audit"); setTab("register"); }}>
+              <div className="row between base"><div className="t13" style={{ flex:1, paddingRight:8 }}>{a.exc}</div><StatPill status={a.status}/></div>
+              <div className="aptmeta"><span>{a.owner}</span><span>·</span><span>due {fmtDate(a.due)}</span></div>
+            </button>
+          ))}
+        </div>
+      </div>)}
+      <div style={{ fontSize:11, color:"#A89C97", textAlign:"center", margin:"22px 0 8px" }}>
+        VMBS Operational Risk &amp; Audit Register · {P[0]} – {P[LAST]} · Owner: Nicola Anderson, COO
+      </div>
+    </div>
+  );
+
+  const AllHistory = (
+    <div>
+      {ErHistory}
+      <div style={{ height:8 }} />
+      {AuditHistory}
+    </div>
+  );
+
+  /* ============ tabs ============ */
+  const tabs = [
+    { id:"pulse",    label:"Pulse",    icon:"M3 12h4l3-8 4 16 3-8h4" },
+    { id:"register", label:mode==="audit"?"Register":mode==="er"?"Measures":"Detail", icon:"M4 6h16M4 12h16M4 18h10" },
+    { id:"history",  label:"History",  icon:"M3 17l6-6 4 4 8-8" },
+    { id:"report",   label:"Report",   icon:"M6 2h9l5 5v15H6zM14 2v6h6" },
+    { id:"entry",    label:"Entry",    icon:"M12 5v14M5 12h14", admin:true },
+    { id:"settings", label:"Settings", icon:"M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z", admin:true },
+  ];
+
+  const screen = () => {
+    if(mode==="all"){
+      if(tab==="pulse") return AllPulse;
+      if(tab==="register") return (<div>{ErRegister}<div className="h2l">Audit register</div>{AuditRegister}</div>);
+      if(tab==="history") return AllHistory;
+      if(tab==="report") return Report;
+      if(tab==="entry") return admin? Entry : null;
+      if(tab==="settings") return admin? Settings : null;
+    } else if(mode==="audit"){
+      if(tab==="pulse") return AuditPulse;
+      if(tab==="register") return AuditRegister;
+      if(tab==="history") return AuditHistory;
+      if(tab==="report") return Report;
+      if(tab==="entry") return admin? Entry : null;
+      if(tab==="settings") return admin? Settings : null;
+    } else {
+      if(tab==="pulse") return ErPulse;
+      if(tab==="register") return ErRegister;
+      if(tab==="history") return ErHistory;
+      if(tab==="report") return Report;
+      if(tab==="entry") return admin? Entry : null;
+      if(tab==="settings") return admin? Settings : null;
+    }
+  };
+
+  const switchMode = (m) => { setMode(m); setOpen(null); setStatusFilter(null); setRatingFilter(null); setCell(null); if((tab==="entry"||tab==="settings") && !admin) setTab("pulse"); window.scrollTo(0,0); };
+
+  return (
+    <div className="shell">
+      <div className="app">
+        <div className="appbar">
+          <VMLogo h={26} />
+          <div style={{ flex:1, minWidth:0 }}>
+            <div className="brand">VM Building Society</div>
+            <div className="sub" style={{ fontWeight:500 }}>Operational Risk &amp; Audit · Latest data: {P[LAST]}</div>
+          </div>
+          <span className="srcbadge">Built-in data</span>
+          {admin ? (
+            <button className="userchip" title="Sign out of admin"
+              onClick={()=>{ try{sessionStorage.removeItem("vmbs_admin");}catch(e){} setAdmin(false); if(tab==="settings"||tab==="entry") setTab("pulse"); }}>A</button>
+          ) : (
+            <button className="loginpill" onClick={()=>{ setPwOpen(true); setPwTry(""); setPwErr(""); }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></svg>
+              Login
+            </button>
+          )}
+        </div>
+
+        <div style={{ padding:"2px 16px 8px" }}>
+          <div className="toggle">
+            <button className={mode==="all"?"on":""} onClick={()=>switchMode("all")}>All</button>
+            <button className={mode==="audit"?"on":""} onClick={()=>switchMode("audit")}>Audit</button>
+            <button className={mode==="er"?"on":""} onClick={()=>switchMode("er")}>Enterprise Risk</button>
+          </div>
+        </div>
+
+        <div className="content">{screen()}</div>
+
+        {pwOpen && (
+          <div className="overlay" onClick={()=>{ setPwOpen(false); setPwErr(""); }}>
+            <div className="modal" onClick={e=>e.stopPropagation()}>
+              <button className="modalx" onClick={()=>{ setPwOpen(false); setPwErr(""); }}>✕</button>
+              <div className="t15" style={{ marginBottom:4 }}>Admin sign-in</div>
+              <div className="sub13" style={{ marginBottom:12 }}>Enter the admin password to update figures.</div>
+              {pwErr && <div className="errmsg">{pwErr}</div>}
+              <input className="login-in" type="password" placeholder="Password" value={pwTry} autoFocus
+                onChange={e=>{ setPwTry(e.target.value); setPwErr(""); }}
+                onKeyDown={e=>{ if(e.key==="Enter"){ if(pwTry===adminPw){ try{sessionStorage.setItem("vmbs_admin","1");}catch(err){} setAdmin(true); setPwOpen(false); setPwTry(""); if(pwNext){ setTab(pwNext); setPwNext(null);} } else setPwErr("Incorrect password."); } }} />
+              <button className="cta" onClick={()=>{ if(pwTry===adminPw){ try{sessionStorage.setItem("vmbs_admin","1");}catch(e){} setAdmin(true); setPwOpen(false); setPwTry(""); if(pwNext){ setTab(pwNext); setPwNext(null);} } else setPwErr("Incorrect password."); }}>Unlock</button>
+            </div>
+          </div>
+        )}
+
+        <div className="tabbar">
+          {tabs.map(({id,label,icon,admin:adm}) => (
+            <button key={id} className={"tabbtn"+(tab===id?" on":"")}
+              onClick={()=>{ if(adm && !admin){ setPwNext(id); setPwOpen(true); return; } setTab(id); setOpen(null); window.scrollTo(0,0); }}>
+              <span className="iconwrap">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={icon}/></svg>
+                {adm && !admin && <span className="tablock"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8A7E7A" strokeWidth="3"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>}
+              </span>
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
