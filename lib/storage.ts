@@ -42,9 +42,13 @@ export function activeDriverName(): StorageDriverName {
   // this far on Vercel, storage is misconfigured — surface it instead of failing later
   // with a cryptic ENOENT/mkdir error from the local-fs driver.
   if (process.env.VERCEL) {
+    // Diagnostic: which blob/token-related env keys does the runtime actually see?
+    // Names only — never values — so it's safe to surface in the error.
+    const blobKeys = Object.keys(process.env).filter((k) => /blob|token/i.test(k));
     throw new Error(
       "No storage configured: connect a Vercel Blob store (provides BLOB_READ_WRITE_TOKEN) " +
-        "or set AZURE_STORAGE_CONNECTION_STRING.",
+        "or set AZURE_STORAGE_CONNECTION_STRING. " +
+        `[runtime env keys matching blob/token: ${blobKeys.length ? blobKeys.join(", ") : "none"}]`,
     );
   }
   return "local-fs";
