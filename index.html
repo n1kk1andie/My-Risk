@@ -384,11 +384,14 @@ function App() {
   const [liveData, setLiveData] = useState(null);
   const [xlStatus, setXlStatus] = useState("loading"); // loading | live | builtin
 
-  useEffect(() => {
+  const refreshData = React.useCallback(() => {
+    setXlStatus("loading");
     mergeExcelData((merged) => { setLiveData(merged); setXlStatus("live"); })
       .catch(() => setXlStatus("builtin"))
-      .finally(() => { if(xlStatus==="loading") setXlStatus("builtin"); });
+      .then(() => setXlStatus(s => s === "loading" ? "builtin" : s));
   }, []);
+
+  useEffect(() => { refreshData(); }, []);
 
   const D = liveData || DATA;                // use live data if available, else built-in
   const P = D.periods;                       // short labels
@@ -495,7 +498,7 @@ function App() {
           })}
       </div>
       <div style={{ fontSize:11, color:"#A89C97", textAlign:"center", margin:"22px 0 8px" }}>
-        VMBS Operational Risk &amp; Audit Register · {P[0]} – {P[LAST]} · Owner: Nicola Anderson, COO
+        VMBS Operational Risk &amp; Audit Register · Owner: Nicola Anderson, COO
       </div>
     </div>
   );
@@ -536,7 +539,7 @@ function App() {
         })}
       </div>
       <div style={{ fontSize:11, color:"#A89C97", textAlign:"center", margin:"22px 0 8px" }}>
-        VMBS Operational Risk &amp; Audit Register · {P[0]} – {P[LAST]} · Owner: Nicola Anderson, COO
+        VMBS Operational Risk &amp; Audit Register · Owner: Nicola Anderson, COO
       </div>
     </div>
   );
@@ -763,7 +766,7 @@ function App() {
 
   const ErHistory = (
     <div>
-      <div className="h2l">Operational risk performance — {P[0]} to {P[LAST]}</div>
+      <div className="h2l">Operational risk performance</div>
       <div className="sub13" style={{ margin:"0 4px 10px" }}>Sorted strongest → weakest, so consistently green measures band at the top and the trouble spots collect below.</div>
       <div className="legend">
         <span><i className="sw" style={{ background:"#0E8A4D" }}/>World Class ≥95%</span>
@@ -1034,7 +1037,7 @@ function App() {
           // Trigger a re-merge with the uploaded file
           await mergeExcelData((merged) => { setLiveData(merged); setXlStatus("live"); }, buf);
           logAct("Uploaded and merged data.xlsx");
-          setXlUploadMsg("✓ Data merged successfully. All users will see updates on their next page load once you upload to Azure.");
+          setXlUploadMsg("✓ Data merged for preview. Verify figures then send data.xlsx to ICT to publish for all users.");
         } catch(err){ setXlUploadMsg("Merge error: " + err.message); }
         setXlUploading(false);
       };
@@ -1127,7 +1130,10 @@ function App() {
           </div>
           <span className={`srcbadge${xlStatus==="live"?" live":""}`}>{xlStatus==="live"?"Live":"Built-in"}</span>
         </div>
-        <button className="cta" onClick={downloadDataFile} style={{ marginBottom:10 }}>⬇ Download data.xlsx</button>
+        <div className="row gap8" style={{ marginBottom:10 }}>
+          <button className="cta" style={{ flex:1 }} onClick={downloadDataFile}>⬇ Download data.xlsx</button>
+          <button className="cta" style={{ flex:1, background:"#1C1416" }} onClick={()=>{ setXlUploadMsg("Refreshing…"); refreshData(); setTimeout(()=>setXlUploadMsg(""),3000); }}>↺ Refresh data</button>
+        </div>
         <label style={{ display:"block", padding:"12px 16px", borderRadius:12, border:"2px dashed #EEE7E3", textAlign:"center", cursor:"pointer", background:"#FAFAFA", fontSize:13, color:"#6E625E" }}>
           {xlUploading ? "Merging…" : "⬆ Upload updated data.xlsx"}
           <input type="file" accept=".xlsx" style={{ display:"none" }}
@@ -1151,8 +1157,7 @@ function App() {
           { n:"3", title:"gov sheet — audit counts", body:"Add a new row for the month. Enter the number of open internal and external audit points. The Total column calculates automatically." },
           { n:"4", title:"pfl sheet — financial loss", body:"Add a new row for the month. Enter potential loss, recovered, and actual loss figures in JMD, and the transaction count." },
           { n:"5", title:"audit sheet — new points", body:"Add one row per new audit point raised this month. Fill in code, exception description, owner, rating, status, issue date, due date, and first seen period. Delete the grey sample row if still present." },
-          { n:"6", title:"Upload & verify", body:'Save the file. Tap "Upload updated data.xlsx" above and select the saved file. The app will merge and display the new data immediately. Verify figures look correct.' },
-          { n:"7", title:"Send to ICT", body:"Email or share the updated data.xlsx with ICT to replace the file on Azure. All users across VM Group will see the new data on their next page load." },
+          { n:"6", title:"Upload & verify", body:'Save the file. Tap "Upload updated data.xlsx" above and select the saved file. The app will merge and display the new data so you can verify figures look correct.' },
         ].map(({n,title,body}) => (
           <div key={n} style={{ display:"flex", gap:10, padding:"9px 0", borderTop:n!=="1"?"1px solid #F1ECE9":"none", alignItems:"flex-start" }}>
             <div style={{ fontFamily:"Sora", fontSize:11, fontWeight:800, color:"var(--red)", flexShrink:0, paddingTop:2, minWidth:16 }}>{n}</div>
@@ -1220,7 +1225,7 @@ function App() {
         </div>
       </div>)}
       <div style={{ fontSize:11, color:"#A89C97", textAlign:"center", margin:"22px 0 8px" }}>
-        VMBS Operational Risk &amp; Audit Register · {P[0]} – {P[LAST]} · Owner: Nicola Anderson, COO
+        VMBS Operational Risk &amp; Audit Register · Owner: Nicola Anderson, COO
       </div>
     </div>
   );
