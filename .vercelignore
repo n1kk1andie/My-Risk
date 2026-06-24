@@ -1,0 +1,12 @@
+# Files not needed by the Vercel build/runtime.
+# The live dataset comes from data/seed.json (+ uploaded months in blob storage),
+# so none of the originals below are referenced by the app.
+
+# Original/legacy app kept for reference only
+legacy/
+
+# Planning + walkthrough notes
+.artifacts/
+
+# Source spreadsheet — superseded by data/seed.json; never imported at build/runtime
+data.xlsx
