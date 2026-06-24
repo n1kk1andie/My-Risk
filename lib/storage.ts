@@ -81,22 +81,30 @@ const azureDriver: StorageDriver = {
 };
 
 // ── Vercel Blob (staging) ────────────────────────────────────────────────────
+// Vercel Blob stores created today default to PRIVATE access, so we read/write with
+// access: "private". Private blobs aren't fetchable by their plain URL — reads go
+// through a short-lived presigned GET URL (issueSignedToken -> presignUrl -> fetch).
 const vercelDriver: StorageDriver = {
   name: "vercel-blob",
   async read() {
-    const { list } = await import("@vercel/blob");
+    const { issueSignedToken, presignUrl } = await import("@vercel/blob");
     const token = vercelBlobToken();
-    const { blobs } = await list({ prefix: BLOB_NAME, limit: 1, token });
-    if (!blobs.length) return null;
-    const res = await fetch(blobs[0].url, { cache: "no-store" });
-    if (!res.ok) return null;
+    const signed = await issueSignedToken({ pathname: BLOB_NAME, operations: ["get"], token });
+    const { presignedUrl } = await presignUrl(signed, {
+      operation: "get",
+      pathname: BLOB_NAME,
+      access: "private",
+    });
+    const res = await fetch(presignedUrl, { cache: "no-store" });
+    if (!res.ok) return null; // 404 = nothing uploaded yet
     return Buffer.from(await res.arrayBuffer());
   },
   async write(buf) {
     const { put } = await import("@vercel/blob");
     await put(BLOB_NAME, buf, {
-      access: "public",
+      access: "private",
       addRandomSuffix: false,
+      allowOverwrite: true, // we always overwrite the single data.xlsx blob
       contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       token: vercelBlobToken(),
     });
