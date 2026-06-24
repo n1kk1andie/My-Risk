@@ -202,13 +202,29 @@ async function mergeExcelData(setLiveData, existingBuf) {
     if(erRows.length < 2) return;
 
     const headerRow = erRows[0]; // ["Measure","Target","Tolerance","Limit","Type","Jun '26","Jul '26",...]
-    const newPeriods = headerRow.slice(5).filter(Boolean); // new month labels from col F onwards
+    // Normalize period labels — Excel may use smart quotes or full year format
+    const normalizePeriod = p => {
+      if(!p) return null;
+      const s = String(p).trim()
+        .replace(/[\u2018\u2019\u201A\u201B\u2032\u02BC]/g, "'"); // curly/smart quotes → straight
+      // Handle "June 2026" → "Jun '26" format
+      const fullMatch = s.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})$/i);
+      if(fullMatch) {
+        const mo = fullMatch[1].slice(0,3);
+        const yr = fullMatch[2].slice(2);
+        return `${mo} '${yr}`;
+      }
+      return s;
+    };
+    const newPeriods = headerRow.slice(5).map(normalizePeriod).filter(Boolean); // new month labels from col F onwards
     if(newPeriods.length === 0) return;
 
     // Build merged periods list — only add periods not already in DATA
     const existingPeriods = new Set(DATA.periods);
     const addPeriods = newPeriods.filter(p => !existingPeriods.has(p));
-    if(addPeriods.length === 0) return; // nothing new
+    console.log("data.xlsx periods found:", newPeriods);
+    console.log("New periods to add:", addPeriods);
+    if(addPeriods.length === 0){ console.warn("No new periods detected — all headers already exist in built-in data or headers not recognized."); return; }
 
     // For each KRI row, merge new values
     const mergedER = D.er.map(m => {
@@ -262,8 +278,8 @@ async function mergeExcelData(setLiveData, existingBuf) {
     if(govWs) {
       const govRows = XLSX.utils.sheet_to_json(govWs, { header: 1, defval: null });
       govRows.slice(1).forEach(r => {
-        if(!r[0] || !addPeriods.includes(r[0])) return;
-        newGov.push({ p: r[0], int: r[1]||0, ext: r[2]||0, tot: (r[1]||0)+(r[2]||0) });
+        if(!r[0] || !addPeriods.includes(normalizePeriod(r[0]))) return;
+        newGov.push({ p: normalizePeriod(r[0]), int: r[1]||0, ext: r[2]||0, tot: (r[1]||0)+(r[2]||0) });
       });
     }
 
@@ -273,8 +289,8 @@ async function mergeExcelData(setLiveData, existingBuf) {
     if(pflWs) {
       const pflRows = XLSX.utils.sheet_to_json(pflWs, { header: 1, defval: null });
       pflRows.slice(1).forEach(r => {
-        if(!r[0] || !addPeriods.includes(r[0])) return;
-        newPfl.push({ p: r[0], pj: r[1]||0, rj: r[2]||0, aj: r[3]||0, n: r[4]||0 });
+        if(!r[0] || !addPeriods.includes(normalizePeriod(r[0]))) return;
+        newPfl.push({ p: normalizePeriod(r[0]), pj: r[1]||0, rj: r[2]||0, aj: r[3]||0, n: r[4]||0 });
       });
     }
 
@@ -679,14 +695,26 @@ function App() {
               {periodData.map((d,i) => (
                 <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", width:BAR_W, flexShrink:0, cursor:"pointer" }}
                   onClick={()=>setCell(cell&&cell.pi===i ? null : {pi:i, d})}>
-                  {/* Count label */}
-                  {d.total > 0 && <div style={{ fontSize:8, fontWeight:700, color:"#4A403C", marginBottom:2, lineHeight:1 }}>{d.total}</div>}
-                  {/* Stacked bar */}
+                  {/* Stacked bar with numbers inside each segment */}
                   <div style={{ width:"100%", display:"flex", flexDirection:"column-reverse", position:"relative" }}>
-                    {d.resolved > 0 && <div style={{ width:"100%", height: (d.resolved/maxVal)*CHART_H, background:"#0E8A4D", borderRadius: d.open===0&&d.pastDue===0 ? "3px 3px 0 0" : "0" }}/>}
-                    {d.open > 0 && <div style={{ width:"100%", height: (d.open/maxVal)*CHART_H, background:"#A07208", borderRadius: d.pastDue===0 ? "3px 3px 0 0" : "0" }}/>}
-                    {d.pastDue > 0 && <div style={{ width:"100%", height: (d.pastDue/maxVal)*CHART_H, background:"#8E0E1F", borderRadius:"3px 3px 0 0" }}/>}
+                    {d.resolved > 0 && (
+                      <div style={{ width:"100%", height: (d.resolved/maxVal)*CHART_H, background:"#0E8A4D", borderRadius: d.open===0&&d.pastDue===0?"3px 3px 0 0":"0", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                        {(d.resolved/maxVal)*CHART_H >= 12 && <span style={{ fontSize:8, fontWeight:800, color:"#fff", lineHeight:1 }}>{d.resolved}</span>}
+                      </div>
+                    )}
+                    {d.open > 0 && (
+                      <div style={{ width:"100%", height: (d.open/maxVal)*CHART_H, background:"#A07208", borderRadius: d.pastDue===0?"3px 3px 0 0":"0", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                        {(d.open/maxVal)*CHART_H >= 12 && <span style={{ fontSize:8, fontWeight:800, color:"#fff", lineHeight:1 }}>{d.open}</span>}
+                      </div>
+                    )}
+                    {d.pastDue > 0 && (
+                      <div style={{ width:"100%", height: (d.pastDue/maxVal)*CHART_H, background:"#8E0E1F", borderRadius:"3px 3px 0 0", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                        {(d.pastDue/maxVal)*CHART_H >= 12 && <span style={{ fontSize:8, fontWeight:800, color:"#fff", lineHeight:1 }}>{d.pastDue}</span>}
+                      </div>
+                    )}
                   </div>
+                  {/* Total below bar */}
+                  {d.total > 0 && <div style={{ fontSize:8, fontWeight:800, color:"#1C1416", marginTop:2, lineHeight:1 }}>{d.total}</div>}
                 </div>
               ))}
             </div>
@@ -1112,6 +1140,28 @@ function App() {
             {xlUploadMsg}
           </div>
         )}
+      </div>
+
+      {/* Monthly instructions */}
+      <div className="card" style={{ marginBottom:10 }}>
+        <div className="t14" style={{ marginBottom:10 }}>Monthly update instructions</div>
+        {[
+          { n:"1", title:"Download", body:'Tap "Download data.xlsx" above to get the current file from Azure.' },
+          { n:"2", title:"er sheet — KRI values", body:"Add a new column for the new month (e.g. Jun '26). Use the same format as existing headers. Enter the actual value for each KRI in the new column. Percentages as decimals e.g. 0.97 for 97%. Leave blank if no data recorded." },
+          { n:"3", title:"gov sheet — audit counts", body:"Add a new row for the month. Enter the number of open internal and external audit points. The Total column calculates automatically." },
+          { n:"4", title:"pfl sheet — financial loss", body:"Add a new row for the month. Enter potential loss, recovered, and actual loss figures in JMD, and the transaction count." },
+          { n:"5", title:"audit sheet — new points", body:"Add one row per new audit point raised this month. Fill in code, exception description, owner, rating, status, issue date, due date, and first seen period. Delete the grey sample row if still present." },
+          { n:"6", title:"Upload & verify", body:'Save the file. Tap "Upload updated data.xlsx" above and select the saved file. The app will merge and display the new data immediately. Verify figures look correct.' },
+          { n:"7", title:"Send to ICT", body:"Email or share the updated data.xlsx with ICT to replace the file on Azure. All users across VM Group will see the new data on their next page load." },
+        ].map(({n,title,body}) => (
+          <div key={n} style={{ display:"flex", gap:10, padding:"9px 0", borderTop:n!=="1"?"1px solid #F1ECE9":"none", alignItems:"flex-start" }}>
+            <div style={{ fontFamily:"Sora", fontSize:11, fontWeight:800, color:"var(--red)", flexShrink:0, paddingTop:2, minWidth:16 }}>{n}</div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:700, marginBottom:2 }}>{title}</div>
+              <div className="sub13" style={{ lineHeight:1.5 }}>{body}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ---- Password ---- */}
