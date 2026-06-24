@@ -4,7 +4,7 @@ import { useRisk } from "@/components/risk-context";
 import { BAND, fmtNum, fmtPct } from "@/lib/rag";
 
 export function ErPulse() {
-  const { P, LAST, erSnap, erBandCounts, totPotLoss, setOpen, setTab } = useRisk();
+  const { P, LAST, erSnap, erBandCounts, lossSnap, setOpen, setTab } = useRisk();
 
   return (
     <div>
@@ -48,9 +48,9 @@ export function ErPulse() {
           </div>
         </div>
         <div className="card">
-          <div className="num16">{fmtNum(totPotLoss && totPotLoss.pj)}</div>
+          <div className="num16">{fmtNum(lossSnap && lossSnap.aj)}</div>
           <div className="sub" style={{ marginTop: 2 }}>
-            Potential loss JMD ({P[LAST]})
+            Actual loss JMD ({P[LAST]})
           </div>
         </div>
       </div>

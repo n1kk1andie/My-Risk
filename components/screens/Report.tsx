@@ -17,7 +17,7 @@ function dl(filename: string, blob: Blob) {
 }
 
 export function Report() {
-  const { mode, P, LAST, erSnap, auditList, erBandCounts, openAudit, aCounts, totPotLoss } = useRisk();
+  const { mode, P, LAST, erSnap, auditList, erBandCounts, openAudit, aCounts, lossSnap } = useRisk();
 
   const buildPDF = async () => {
     try {
@@ -171,8 +171,8 @@ export function Report() {
                   <td>{erBandCounts.Tolerance}</td>
                 </tr>
                 <tr>
-                  <td>Potential loss JMD</td>
-                  <td>{fmtNum(totPotLoss && totPotLoss.pj)}</td>
+                  <td>Actual loss JMD</td>
+                  <td>{fmtNum(lossSnap && lossSnap.aj)}</td>
                 </tr>
               </>
             )}

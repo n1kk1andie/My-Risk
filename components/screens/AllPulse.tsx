@@ -5,7 +5,7 @@ import { fmtDate, fmtNum } from "@/lib/rag";
 import { StatPill } from "@/components/ui/Pills";
 
 export function AllPulse() {
-  const { P, LAST, erSnap, erBandCounts, openAudit, aCounts, auditList, totPotLoss, setStatusFilter, setRatingFilter, setOpen, setMode, setTab } =
+  const { P, LAST, erSnap, erBandCounts, openAudit, aCounts, auditList, lossSnap, setStatusFilter, setRatingFilter, setOpen, setMode, setTab } =
     useRisk();
 
   const jumpAudit = (status: string) => {
@@ -62,9 +62,9 @@ export function AllPulse() {
           </div>
         </div>
         <div className="card">
-          <div className="num16">{fmtNum(totPotLoss && totPotLoss.pj)}</div>
+          <div className="num16">{fmtNum(lossSnap && lossSnap.aj)}</div>
           <div className="sub" style={{ marginTop: 2 }}>
-            Potential loss JMD
+            Actual loss JMD
           </div>
         </div>
       </div>

@@ -39,7 +39,7 @@ interface RiskCtx {
   openAudit: AuditPoint[];
   erSnap: ErSnap[];
   erBandCounts: { Target: number; Limit: number; Tolerance: number };
-  totPotLoss: PflRow | undefined;
+  lossSnap: PflRow | undefined;
   setTab: (t: Tab) => void;
   setOpen: (o: string | null) => void;
   setMode: (m: Mode) => void;
@@ -165,7 +165,7 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
     return c;
   }, [erSnap]);
 
-  const totPotLoss = data.pfl[data.pfl.length - 1];
+  const lossSnap = data.pfl[data.pfl.length - 1];
 
   const switchMode = useCallback(
     (m: Mode) => {
@@ -183,7 +183,7 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
   const value: RiskCtx = {
     data, P, LAST, xlStatus, admin, authConfigured,
     mode, tab, open, statusFilter, ratingFilter, cell,
-    auditList, erList, aCounts, openAudit, erSnap, erBandCounts, totPotLoss,
+    auditList, erList, aCounts, openAudit, erSnap, erBandCounts, lossSnap,
     setTab, setOpen, setMode, setStatusFilter, setRatingFilter, setCell,
     switchMode, refreshData, login, logout,
   };
