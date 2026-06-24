@@ -17,11 +17,36 @@ export interface StorageDriver {
   write(buf: Buffer): Promise<void>;
 }
 
+/**
+ * Find the Vercel Blob read/write token.
+ *
+ * Normally it's BLOB_READ_WRITE_TOKEN, but a connected Blob store can expose the
+ * token under a non-standard env var name (e.g. when the store isn't the project
+ * default). Every Vercel Blob R/W token's *value* starts with "vercel_blob_rw_",
+ * so we fall back to matching by value — making detection independent of the var name.
+ */
+export function vercelBlobToken(): string | undefined {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  for (const v of Object.values(process.env)) {
+    if (typeof v === "string" && v.startsWith("vercel_blob_rw_")) return v;
+  }
+  return undefined;
+}
+
 export function activeDriverName(): StorageDriverName {
   const forced = process.env.STORAGE_DRIVER as StorageDriverName | undefined;
   if (forced) return forced;
   if (process.env.AZURE_STORAGE_CONNECTION_STRING) return "azure-blob";
-  if (process.env.BLOB_READ_WRITE_TOKEN) return "vercel-blob";
+  if (vercelBlobToken()) return "vercel-blob";
+  // On Vercel the filesystem is read-only, so local-fs can't work there. If we got
+  // this far on Vercel, storage is misconfigured — surface it instead of failing later
+  // with a cryptic ENOENT/mkdir error from the local-fs driver.
+  if (process.env.VERCEL) {
+    throw new Error(
+      "No storage configured: connect a Vercel Blob store (provides BLOB_READ_WRITE_TOKEN) " +
+        "or set AZURE_STORAGE_CONNECTION_STRING.",
+    );
+  }
   return "local-fs";
 }
 
@@ -56,7 +81,8 @@ const vercelDriver: StorageDriver = {
   name: "vercel-blob",
   async read() {
     const { list } = await import("@vercel/blob");
-    const { blobs } = await list({ prefix: BLOB_NAME, limit: 1 });
+    const token = vercelBlobToken();
+    const { blobs } = await list({ prefix: BLOB_NAME, limit: 1, token });
     if (!blobs.length) return null;
     const res = await fetch(blobs[0].url, { cache: "no-store" });
     if (!res.ok) return null;
@@ -68,6 +94,7 @@ const vercelDriver: StorageDriver = {
       access: "public",
       addRandomSuffix: false,
       contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      token: vercelBlobToken(),
     });
   },
 };
