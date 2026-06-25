@@ -67,6 +67,16 @@ export function useRisk(): RiskCtx {
 
 const SEED_RESPONSE: DataResponse = { ...SEED, source: "builtin", newPeriods: [] };
 
+// Audit points are limited to these owners (matched on any name token in the owner
+// field, case-insensitive — e.g. "Nicola Anderson, COO" matches "Nicola").
+const ALLOWED_OWNERS = new Set(["paul", "devon", "nicola", "lesa"]);
+function ownerAllowed(owner: string): boolean {
+  return (owner || "")
+    .toLowerCase()
+    .split(/[\s,]+/)
+    .some((token) => ALLOWED_OWNERS.has(token));
+}
+
 export function RiskProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<DataResponse>(SEED_RESPONSE);
   const [xlStatus, setXlStatus] = useState<XlStatus>("loading");
@@ -152,7 +162,9 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setSelPeriod(data.periods.length - 1);
   }, [data.periods.length]);
-  const auditList = data.audit;
+  // The register is limited to audit points owned by these four people; everything
+  // downstream (counts, dashboards, history, report) derives from this filtered list.
+  const auditList = useMemo(() => data.audit.filter((a) => ownerAllowed(a.owner)), [data.audit]);
   const erList = data.er;
 
   // Classify each point by its effective status (due-date aware) as at the latest period,
