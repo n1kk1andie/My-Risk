@@ -1,6 +1,7 @@
 "use client";
 
 import { useRisk } from "@/components/risk-context";
+import { auditStatusAsOf } from "@/lib/audit";
 import { BAND, STATUSC, fmtDate, fmtNum, fmtPct } from "@/lib/rag";
 
 function dl(filename: string, blob: Blob) {
@@ -18,6 +19,10 @@ function dl(filename: string, blob: Blob) {
 
 export function Report() {
   const { mode, P, LAST, erSnap, auditList, erBandCounts, openAudit, aCounts, lossSnap } = useRisk();
+
+  // Effective (due-date aware) status as at the latest period, matching the on-screen
+  // dashboards and register — so the exported Status column agrees with the counts.
+  const effStatus = (a: (typeof auditList)[number]) => auditStatusAsOf(a, LAST, P) ?? a.status;
 
   const buildPDF = async () => {
     try {
@@ -59,7 +64,7 @@ export function Report() {
         });
       };
       const auditTable = (startY: number) => {
-        const rows = auditList.map((a) => [a.exc, a.rating, a.owner, a.status, fmtDate(a.due)]);
+        const rows = auditList.map((a) => [a.exc, a.rating, a.owner, effStatus(a), fmtDate(a.due)]);
         autoTable(doc, {
           startY,
           head: [["Audit Point", "Rating", "Owner", "Status", "Due"]],
@@ -111,7 +116,7 @@ export function Report() {
       "Audit Point,Rating,Owner,Status,Issue Date,Due Date,First Seen,Last Seen\n" +
       aList
         .map((a) =>
-          [a.exc, a.rating, a.owner, a.status, a.issue || "", a.due || "", a.first, a.last]
+          [a.exc, a.rating, a.owner, effStatus(a), a.issue || "", a.due || "", a.first, a.last]
             .map((x) => '"' + String(x).replace(/"/g, '""') + '"')
             .join(",")
         )
