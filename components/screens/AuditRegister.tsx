@@ -3,36 +3,16 @@
 import type { AuditPoint } from "@/lib/types";
 import { useRisk } from "@/components/risk-context";
 import { STATUSC, fmtDate } from "@/lib/rag";
-import { periodEndDate } from "@/lib/periods";
+import { auditStatusAsOf } from "@/lib/audit";
 import { StatPill, RatingPill } from "@/components/ui/Pills";
 
-/**
- * Status of an audit point as it stood at period index `pi`.
- *  - null  → not yet raised that month (hidden from the register)
- *  - the latest period preserves the stored current status exactly
- *  - earlier periods are derived from the open/closed timeline + due date
- */
-function statusAsOf(a: AuditPoint, pi: number, P: string[], isLast: boolean): string | null {
-  const firstIdx = P.indexOf(a.first);
-  if (firstIdx >= 0 && pi < firstIdx) return null; // not raised yet
-  if (isLast) return a.status;
-  if (a.tl[pi] !== 1) return "Resolved"; // closed by this month
-  if (a.due) {
-    const due = new Date(a.due);
-    const end = periodEndDate(P[pi]);
-    if (!isNaN(due.getTime()) && end && due <= end) return "Past Due";
-  }
-  return "Open";
-}
-
 export function AuditRegister() {
-  const { P, LAST, selPeriod, auditList, statusFilter, ratingFilter, open, setStatusFilter, setRatingFilter, setOpen } =
+  const { P, selPeriod, auditList, statusFilter, ratingFilter, open, setStatusFilter, setRatingFilter, setOpen } =
     useRisk();
-  const isLast = selPeriod === LAST;
 
   // Resolve each point's status for the selected period, dropping points not yet raised.
   const asOf = auditList
-    .map((a) => ({ a, status: statusAsOf(a, selPeriod, P, isLast) }))
+    .map((a) => ({ a, status: auditStatusAsOf(a, selPeriod, P) as string | null }))
     .filter((x): x is { a: AuditPoint; status: string } => x.status !== null);
 
   const counts = asOf.reduce<Record<string, number>>((c, { status }) => {

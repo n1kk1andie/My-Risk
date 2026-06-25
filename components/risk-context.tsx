@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AuditPoint, Band, DataResponse, ErMeasure, PflRow } from "@/lib/types";
+import { auditStatusAsOf } from "@/lib/audit";
 import { SEED } from "@/data/seed";
 
 export type Mode = "all" | "audit" | "er";
@@ -65,14 +66,6 @@ export function useRisk(): RiskCtx {
 }
 
 const SEED_RESPONSE: DataResponse = { ...SEED, source: "builtin", newPeriods: [] };
-
-function auditCounts(list: AuditPoint[]): Record<string, number> {
-  const c: Record<string, number> = { "Past Due": 0, Open: 0, Resolved: 0 };
-  list.forEach((a) => {
-    c[a.status] = (c[a.status] || 0) + 1;
-  });
-  return c;
-}
 
 export function RiskProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<DataResponse>(SEED_RESPONSE);
@@ -162,8 +155,23 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
   const auditList = data.audit;
   const erList = data.er;
 
-  const aCounts = useMemo(() => auditCounts(auditList), [auditList]);
-  const openAudit = useMemo(() => auditList.filter((a) => a.status !== "Resolved"), [auditList]);
+  // Classify each point by its effective status (due-date aware) as at the latest period,
+  // so the dashboards, report and register chips all agree and reflect overdue items.
+  const auditEval = useMemo(
+    () => auditList.map((a) => ({ a, eff: auditStatusAsOf(a, P.length - 1, P) })),
+    [auditList, P]
+  );
+  const aCounts = useMemo(() => {
+    const c: Record<string, number> = { "Past Due": 0, Open: 0, Resolved: 0 };
+    auditEval.forEach(({ eff }) => {
+      if (eff) c[eff] = (c[eff] || 0) + 1;
+    });
+    return c;
+  }, [auditEval]);
+  const openAudit = useMemo(
+    () => auditEval.filter(({ eff }) => eff && eff !== "Resolved").map(({ a, eff }) => ({ ...a, status: eff as string })),
+    [auditEval]
+  );
 
   const erSnap = useMemo<ErSnap[]>(
     () =>
