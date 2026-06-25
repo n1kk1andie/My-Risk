@@ -21,11 +21,41 @@ const INSTRUCTIONS = [
 ];
 
 export function Settings() {
-  const { xlStatus, data, refreshData, logout } = useRisk();
+  const { xlStatus, data, refreshData, logout, changePassword } = useRisk();
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const isOk = msg.startsWith("✓");
+
+  const [curPw, setCurPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+  const [pwMsg, setPwMsg] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const pwOk = pwMsg.startsWith("✓");
+
+  const submitPwChange = async () => {
+    if (newPw.length < 4) {
+      setPwMsg("New password must be at least 4 characters.");
+      return;
+    }
+    if (newPw !== newPw2) {
+      setPwMsg("New passwords don't match.");
+      return;
+    }
+    setPwSaving(true);
+    setPwMsg("Saving…");
+    const res = await changePassword(curPw, newPw);
+    setPwSaving(false);
+    if (res.ok) {
+      setCurPw("");
+      setNewPw("");
+      setNewPw2("");
+      setPwMsg("✓ Admin password updated.");
+    } else {
+      setPwMsg(res.error || "Could not update password.");
+    }
+  };
 
   const upload = async (file: File) => {
     setUploading(true);
@@ -178,11 +208,62 @@ export function Settings() {
       </div>
 
       <div className="h2l" style={{ marginTop: 18 }}>
+        Admin password
+      </div>
+      <div className="card" style={{ marginBottom: 10 }}>
+        <div className="sub13" style={{ marginBottom: 12 }}>
+          Change the password used to sign in as admin. It is stored securely on the server and applies to every browser.
+        </div>
+        <input
+          className="login-in"
+          type="password"
+          autoComplete="current-password"
+          placeholder="Current password"
+          value={curPw}
+          onChange={(e) => {
+            setCurPw(e.target.value);
+            setPwMsg("");
+          }}
+        />
+        <input
+          className="login-in"
+          type="password"
+          autoComplete="new-password"
+          placeholder="New password"
+          value={newPw}
+          onChange={(e) => {
+            setNewPw(e.target.value);
+            setPwMsg("");
+          }}
+        />
+        <input
+          className="login-in"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Confirm new password"
+          value={newPw2}
+          onChange={(e) => {
+            setNewPw2(e.target.value);
+            setPwMsg("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !pwSaving) submitPwChange();
+          }}
+        />
+        <button className="cta" onClick={submitPwChange} disabled={pwSaving}>
+          {pwSaving ? "Saving…" : "Update password"}
+        </button>
+        {pwMsg && (
+          <div style={{ fontSize: 12, marginTop: 8, color: pwOk ? "#0E8A4D" : "#8E0E1F", fontWeight: 600 }}>{pwMsg}</div>
+        )}
+      </div>
+
+      <div className="h2l" style={{ marginTop: 18 }}>
         Admin session
       </div>
       <div className="card">
         <div className="sub13" style={{ marginBottom: 12 }}>
-          You are signed in as admin. The sign-in password is configured on the server (ADMIN_PASSWORD); contact ICT to change it.
+          You are signed in as admin.
         </div>
         <button className="cta2" onClick={() => logout()}>
           Sign out

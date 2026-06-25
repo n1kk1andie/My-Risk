@@ -14,15 +14,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json({ admin: isAdmin(Date.now()), configured: adminConfigured() });
+  return NextResponse.json({ admin: isAdmin(Date.now()), configured: await adminConfigured() });
 }
 
 export async function POST(req: NextRequest) {
-  if (!adminConfigured()) {
+  if (!(await adminConfigured())) {
     return NextResponse.json({ ok: false, error: "Admin password is not configured on the server." }, { status: 503 });
   }
   const { password } = (await req.json().catch(() => ({}))) as { password?: string };
-  if (!password || !checkPassword(password)) {
+  if (!password || !(await checkPassword(password))) {
     return NextResponse.json({ ok: false, error: "Incorrect password." }, { status: 401 });
   }
   const res = NextResponse.json({ ok: true, admin: true });

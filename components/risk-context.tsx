@@ -50,6 +50,7 @@ interface RiskCtx {
   refreshData: () => Promise<void>;
   login: (pw: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const Ctx = createContext<RiskCtx | null>(null);
@@ -132,6 +133,21 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
     setTab((t) => (t === "settings" ? "pulse" : t));
   }, []);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    try {
+      const r = await fetch("/api/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const j = await r.json();
+      if (r.ok && j.ok) return { ok: true };
+      return { ok: false, error: j.error || "Could not update password." };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  }, []);
+
   const P = data.periods;
   const LAST = P.length - 1;
   const auditList = data.audit;
@@ -185,7 +201,7 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
     mode, tab, open, statusFilter, ratingFilter, cell,
     auditList, erList, aCounts, openAudit, erSnap, erBandCounts, lossSnap,
     setTab, setOpen, setMode, setStatusFilter, setRatingFilter, setCell,
-    switchMode, refreshData, login, logout,
+    switchMode, refreshData, login, logout, changePassword,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
