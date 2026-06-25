@@ -4,8 +4,7 @@ import { useRisk } from "@/components/risk-context";
 import { auditStatusAsOf } from "@/lib/audit";
 
 export function AuditHistory() {
-  const { P, data, auditList, cell, setCell } = useRisk();
-  const periodsFull = data.periodsFull;
+  const { P, auditList, cell, setCell } = useRisk();
 
   const periodData = P.map((p, pi) => {
     let pastDue = 0,
@@ -22,36 +21,6 @@ export function AuditHistory() {
   });
 
   const maxVal = Math.max(...periodData.map((d) => d.total), 1);
-
-  const yearGroups: { yr: string; count: number; startI: number }[] = [];
-  {
-    let cur: string | null = null;
-    let count = 0;
-    let startI = 0;
-    P.forEach((p, i) => {
-      const yr = p.split(" ")[1];
-      if (yr !== cur) {
-        if (cur) yearGroups.push({ yr: cur, count, startI });
-        cur = yr;
-        count = 1;
-        startI = i;
-      } else count++;
-    });
-    if (cur) yearGroups.push({ yr: cur, count, startI });
-  }
-
-  const MON3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const mon3 = (p: string) => {
-    const f = periodsFull[P.indexOf(p)];
-    return f ? MON3[FULL.indexOf(f.split(" ")[0])] : p.split(" ")[0].slice(0, 3);
-  };
-
-  const BAR_W = 22;
-  const GAP = 4;
-  const COL = BAR_W + GAP;
-  const CHART_H = 160;
-  const totalW = P.length * COL + 8;
   const sel = cell && "pi" in cell ? cell : null;
 
   return (
@@ -72,95 +41,61 @@ export function AuditHistory() {
         </span>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <div style={{ width: totalW, minWidth: totalW }}>
-          <div style={{ display: "flex", alignItems: "flex-end", height: CHART_H, gap: GAP + "px", padding: "0 4px", position: "relative" }}>
-            {[0.25, 0.5, 0.75, 1].map((f) => (
-              <div
-                key={f}
-                style={{ position: "absolute", left: 0, right: 0, bottom: f * CHART_H, borderTop: "1px dashed #EEE7E3", pointerEvents: "none" }}
-              >
-                <span style={{ fontSize: 8, color: "#C0B8B5", position: "absolute", right: 2, top: -8 }}>{Math.round(f * maxVal)}</span>
-              </div>
-            ))}
-            {periodData.map((d, i) => (
-              <div
-                key={i}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", width: BAR_W, flexShrink: 0, cursor: "pointer" }}
-                onClick={() => setCell(sel && sel.pi === i ? null : { pi: i, d })}
-              >
-                <div style={{ width: "100%", display: "flex", flexDirection: "column-reverse", position: "relative" }}>
-                  {d.open > 0 && (
-                    <div
-                      style={{
-                        width: "100%",
-                        height: (d.open / maxVal) * CHART_H,
-                        background: "#A07208",
-                        borderRadius: d.pastDue === 0 ? "3px 3px 0 0" : "0",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {(d.open / maxVal) * CHART_H >= 12 && (
-                        <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{d.open}</span>
-                      )}
-                    </div>
-                  )}
-                  {d.pastDue > 0 && (
-                    <div
-                      style={{
-                        width: "100%",
-                        height: (d.pastDue / maxVal) * CHART_H,
-                        background: "#8E0E1F",
-                        borderRadius: "3px 3px 0 0",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {(d.pastDue / maxVal) * CHART_H >= 12 && (
-                        <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{d.pastDue}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {d.total > 0 && (
-                  <div style={{ fontSize: 8, fontWeight: 800, color: "#1C1416", marginTop: 2, lineHeight: 1 }}>{d.total}</div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", marginTop: 4, paddingLeft: 4 }}>
-            {yearGroups.map((y, yi) => (
-              <div key={yi} style={{ flexShrink: 0, borderLeft: yi > 0 ? "2px solid rgba(228,1,43,0.2)" : "none" }}>
+      <div>
+        {periodData.map((d, i) => {
+          const isSel = sel != null && sel.pi === i;
+          const yr = d.p.split(" ")[1];
+          const prevYr = i > 0 ? P[i - 1].split(" ")[1] : null;
+          const pdW = (d.pastDue / maxVal) * 100;
+          const opW = (d.open / maxVal) * 100;
+          return (
+            <div key={i}>
+              {yr !== prevYr && (
                 <div
                   style={{
                     fontFamily: "Sora",
                     fontSize: 10,
                     fontWeight: 800,
                     color: "var(--red)",
-                    textAlign: "center",
-                    padding: "2px 0 2px",
-                    width: y.count * COL,
+                    margin: i === 0 ? "0 0 4px" : "12px 0 4px",
+                    paddingLeft: 4,
                   }}
                 >
-                  {"20" + y.yr.replace("'", "")}
+                  20{(yr || "").replace("'", "")}
                 </div>
-                <div style={{ display: "flex" }}>
-                  {P.slice(y.startI, y.startI + y.count).map((p, j) => (
-                    <div key={j} style={{ width: COL, flexShrink: 0, fontSize: 8, color: "#A89C97", textAlign: "center", fontWeight: 600 }}>
-                      {mon3(p)}
+              )}
+              <div
+                onClick={() => setCell(isSel ? null : { pi: i, d })}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "3px 4px",
+                  cursor: "pointer",
+                  background: isSel ? "#FAF4F0" : "transparent",
+                  borderRadius: 6,
+                }}
+              >
+                <div style={{ width: 30, flexShrink: 0, fontSize: 9, fontWeight: 700, color: "#6E625E", textAlign: "right" }}>
+                  {d.p.split(" ")[0]}
+                </div>
+                <div style={{ flex: 1, height: 16, background: "#F4EFEC", borderRadius: 4, overflow: "hidden", display: "flex" }}>
+                  {d.pastDue > 0 && (
+                    <div style={{ width: pdW + "%", background: "#8E0E1F", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {pdW >= 9 && <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{d.pastDue}</span>}
                     </div>
-                  ))}
+                  )}
+                  {d.open > 0 && (
+                    <div style={{ width: opW + "%", background: "#A07208", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {opW >= 9 && <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{d.open}</span>}
+                    </div>
+                  )}
                 </div>
+                <div style={{ width: 16, flexShrink: 0, fontSize: 9, fontWeight: 800, color: "#1C1416" }}>{d.total || ""}</div>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       {sel && (
