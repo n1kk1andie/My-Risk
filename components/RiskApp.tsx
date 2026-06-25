@@ -16,7 +16,7 @@ import { Settings } from "@/components/screens/Settings";
 
 const TABS: { id: Tab; label: (mode: string) => string; icon: string; admin?: boolean }[] = [
   { id: "pulse", label: () => "Pulse", icon: "M3 12h4l3-8 4 16 3-8h4" },
-  { id: "register", label: (m) => (m === "audit" ? "Register" : m === "er" ? "Measures" : "Detail"), icon: "M4 6h16M4 12h16M4 18h10" },
+  { id: "register", label: () => "Register", icon: "M4 6h16M4 12h16M4 18h10" },
   { id: "history", label: () => "History", icon: "M3 17l6-6 4 4 8-8" },
   { id: "report", label: () => "Report", icon: "M6 2h9l5 5v15H6zM14 2v6h6" },
   {
