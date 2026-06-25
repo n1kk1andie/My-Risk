@@ -12,7 +12,7 @@ export type XlStatus = "loading" | "live" | "builtin";
 /** A heatmap cell tap, or an audit-history bar tap. */
 export type CellSel =
   | { m: ErMeasure; mi: number; v: number | null }
-  | { pi: number; d: { pastDue: number; open: number; total: number } }
+  | { pi: number; d: { pastDue: number; open: number; resolved: number; total: number } }
   | null;
 
 export interface ErSnap extends ErMeasure {

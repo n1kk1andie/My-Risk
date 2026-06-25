@@ -49,6 +49,36 @@ function numOrNull(v: unknown): number | null {
   return isNaN(n) ? null : n;
 }
 
+const pad2 = (n: number): string => String(n).padStart(2, "0");
+
+/**
+ * Normalise a date cell to ISO `YYYY-MM-DD`. Excel stores dates as serial numbers,
+ * which sheet_to_json returns as plain numbers — `new Date(45657)` would then be
+ * read as milliseconds (1970), not a real date. Handles Excel serials, JS Dates,
+ * and day-first text like `31/12/2024`. Returns null for blanks.
+ */
+function excelDateToISO(v: unknown): string | null {
+  if (v == null || v === "") return null;
+  if (v instanceof Date) {
+    return isNaN(v.getTime()) ? null : `${v.getUTCFullYear()}-${pad2(v.getUTCMonth() + 1)}-${pad2(v.getUTCDate())}`;
+  }
+  if (typeof v === "number") {
+    const d = XLSX.SSF.parse_date_code(v);
+    return d ? `${d.y}-${pad2(d.m)}-${pad2(d.d)}` : null;
+  }
+  const s = String(v).trim();
+  if (!s) return null;
+  // Day-first text dates (dd/mm/yyyy, dd-mm-yy, etc.) — the format used in the source data.
+  const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  if (m) {
+    const day = +m[1];
+    const mon = +m[2];
+    const yr = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+    if (mon >= 1 && mon <= 12 && day >= 1 && day <= 31) return `${yr}-${pad2(mon)}-${pad2(day)}`;
+  }
+  return s; // already ISO (or some other text) — leave as-is
+}
+
 function cloneSeed(): Dataset {
   return JSON.parse(JSON.stringify(SEED)) as Dataset;
 }
@@ -56,7 +86,8 @@ function cloneSeed(): Dataset {
 export function mergeWorkbook(buf: ArrayBuffer | Uint8Array | Buffer): MergeResult {
   const base = cloneSeed();
   const warnings: string[] = [];
-  const wb = XLSX.read(new Uint8Array(buf as ArrayBuffer), { type: "array" });
+  // cellNF keeps each cell's number-format string (.z) so we can detect "%"-formatted cells.
+  const wb = XLSX.read(new Uint8Array(buf as ArrayBuffer), { type: "array", cellNF: true });
 
   const existing = new Set(base.periods);
 
@@ -73,7 +104,6 @@ export function mergeWorkbook(buf: ArrayBuffer | Uint8Array | Buffer): MergeResu
   } else {
     const erRows = XLSX.utils.sheet_to_json<unknown[]>(erWs, { header: 1, defval: null });
     const header = (erRows[0] as unknown[]) || [];
-    const dataRows = (erRows.slice(1) as unknown[][]).filter((r) => norm(r[findCol(header, /^(measure|kri|name)/i, 0)]));
 
     // Detect column roles by header name (tolerant of inserts/reorders).
     const measureCol = findCol(header, /^(measure|kri|name)/i, 0);
@@ -99,35 +129,54 @@ export function mergeWorkbook(buf: ArrayBuffer | Uint8Array | Buffer): MergeResu
     addPeriods = orderedPeriods.filter((p) => !existing.has(p));
 
     const allPeriods = [...base.periods, ...addPeriods];
-    const rowByName = new Map<string, unknown[]>();
-    dataRows.forEach((r) => rowByName.set(norm(r[measureCol]).toLowerCase(), r));
+
+    // Map measure name -> { row, sheet row index }. The index lets us read each cell's
+    // number format to detect percentage columns.
+    const rowByName = new Map<string, { r: unknown[]; idx: number }>();
+    erRows.forEach((row, idx) => {
+      if (idx === 0) return; // header
+      const r = row as unknown[];
+      const key = norm(r[measureCol]).toLowerCase();
+      if (key && !rowByName.has(key)) rowByName.set(key, { r, idx });
+    });
     const seedNames = new Set(base.er.map((m) => m.name.trim().toLowerCase()));
+
+    // True when the Excel cell is percent-formatted (value 1 displays as "100%").
+    const cellPct = (rowIdx: number, col: number): boolean => {
+      if (col < 0) return false;
+      const cell = erWs[XLSX.utils.encode_cell({ r: rowIdx, c: col })] as { z?: unknown; w?: unknown } | undefined;
+      if (!cell) return false;
+      return /%/.test(String(cell.z ?? "")) || /%\s*$/.test(String(cell.w ?? ""));
+    };
+    const rowPct = (rowIdx: number): boolean =>
+      cellPct(rowIdx, targetCol) || [...periodColMap.values()].some((ci) => cellPct(rowIdx, ci));
 
     // Existing measures: keep seed history, append values for the new months only.
     mergedER = base.er.map((m) => {
-      const row = rowByName.get(m.name.trim().toLowerCase());
-      if (!row) {
+      const entry = rowByName.get(m.name.trim().toLowerCase());
+      if (!entry) {
         measuresUnmatched.push(m.name);
         return { ...m, s: [...m.s, ...addPeriods.map(() => null)], bands: [...m.bands, ...addPeriods.map(() => null)] };
       }
       measuresUpdated++;
+      const isPct = m.isPct || rowPct(entry.idx);
       const newVals = addPeriods.map((p) => {
         const ci = periodColMap.get(p);
-        const v = ci != null ? numOrNull(row[ci]) : null;
-        if (m.isPct && v != null && v > 1.5) {
-          warnings.push(`"${m.name}" ${p}: value ${v} looks like a whole-number percent — enter as a decimal (e.g. 0.97).`);
-        }
-        return v;
+        return ci != null ? numOrNull(entry.r[ci]) : null;
       });
       const newBands = newVals.map((v) => calcBand(v, m.target, m.lim, m.tol));
-      return { ...m, s: [...m.s, ...newVals], bands: [...m.bands, ...newBands] };
+      return { ...m, isPct, s: [...m.s, ...newVals], bands: [...m.bands, ...newBands] };
     });
 
     // New measure rows (not in the seed): create them with whatever history the workbook has.
-    dataRows.forEach((r) => {
+    rowByName.forEach((entry, key) => {
+      const r = entry.r;
       const nm = norm(r[measureCol]);
-      if (!nm || seedNames.has(nm.toLowerCase())) return;
-      const isPct = /%|percent/i.test(norm(typeCol >= 0 ? r[typeCol] : "")) || /%/.test(norm(targetCol >= 0 ? r[targetCol] : ""));
+      if (!nm || seedNames.has(key)) return;
+      const isPct =
+        /%|percent/i.test(norm(typeCol >= 0 ? r[typeCol] : "")) ||
+        /%/.test(norm(targetCol >= 0 ? r[targetCol] : "")) ||
+        rowPct(entry.idx);
       const targetRaw = targetCol >= 0 ? r[targetCol] : null;
       const target = numOrNull(targetRaw) ?? 0;
       const tol = (tolCol >= 0 ? numOrNull(r[tolCol]) : 0) ?? 0;
@@ -139,6 +188,19 @@ export function mergeWorkbook(buf: ArrayBuffer | Uint8Array | Buffer): MergeResu
       const bands = series.map((v) => calcBand(v, target, lim, tol));
       mergedER.push({ name: nm, target, target_raw: (targetRaw as number | string) ?? target, tol, lim, s: series, bands, isPct, _custom: true });
       newMeasures.push(nm);
+    });
+
+    // Percentages are stored as decimals (0.97 = 97%). If a percent measure carries
+    // whole-number values (96, 100) — e.g. a cell formatted as % but typed as a whole
+    // number — scale them to decimals so the UI's fmtPct shows "100%", not "1"/"10000%".
+    mergedER = mergedER.map((m) => {
+      if (!m.isPct) return m;
+      const dec = (v: number | null): number | null => (v != null && v > 1.5 ? v / 100 : v);
+      const s = m.s.map(dec);
+      const target = dec(m.target) ?? m.target;
+      const lim = dec(m.lim) ?? m.lim;
+      const tol = dec(m.tol) ?? m.tol;
+      return { ...m, s, target, lim, tol, bands: s.map((v) => calcBand(v, target, lim, tol)) };
     });
   }
 
@@ -176,8 +238,8 @@ export function mergeWorkbook(buf: ArrayBuffer | Uint8Array | Buffer): MergeResu
         const status = norm(r[aCol.status]) || seed?.status || "Open";
         const owner = norm(r[aCol.owner]) || seed?.owner || "—";
         const rating = norm(r[aCol.rating]) || seed?.rating || "Moderate";
-        const issue = (r[aCol.issue] as string) ?? seed?.issue ?? null;
-        const due = (r[aCol.due] as string) ?? seed?.due ?? null;
+        const issue = excelDateToISO(r[aCol.issue]) ?? seed?.issue ?? null;
+        const due = excelDateToISO(r[aCol.due]) ?? seed?.due ?? null;
         const firstSeen = norm(r[aCol.first]) || seed?.first || addPeriods[0] || base.periods[0];
         const resolved = status === "Resolved";
         const firstIdx = allPeriods.indexOf(firstSeen);

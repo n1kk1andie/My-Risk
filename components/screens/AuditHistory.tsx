@@ -1,7 +1,6 @@
 "use client";
 
 import { useRisk } from "@/components/risk-context";
-import { auditStatusAsOf } from "@/lib/audit";
 
 export function AuditHistory() {
   const { P, data, auditList, cell, setCell } = useRisk();
@@ -9,16 +8,15 @@ export function AuditHistory() {
 
   const periodData = P.map((p, pi) => {
     let pastDue = 0,
-      open = 0;
-    // Count the points that were OPEN on the register that month, split by their
-    // status *as of that month* (due-date aware). Resolved points are not "open",
-    // so they're excluded — the chart tracks the open audit-point load over time.
+      open = 0,
+      resolved = 0;
     auditList.forEach((a) => {
-      const s = auditStatusAsOf(a, pi, P);
-      if (s === "Past Due") pastDue++;
-      else if (s === "Open") open++;
+      if (!a.tl[pi]) return;
+      if (a.status === "Past Due") pastDue++;
+      else if (a.status === "Open") open++;
+      else resolved++;
     });
-    return { p, pastDue, open, total: pastDue + open };
+    return { p, pastDue, open, resolved, total: pastDue + open + resolved };
   });
 
   const maxVal = Math.max(...periodData.map((d) => d.total), 1);
@@ -58,7 +56,7 @@ export function AuditHistory() {
     <div>
       <div className="h2l">Audit points open by month</div>
       <div className="sub13" style={{ margin: "0 4px 12px" }}>
-        Shows how many audit points were open each month, split into past due and within timeline.
+        Shows how many points were on the register each month, split by status.
       </div>
 
       <div className="legend" style={{ marginBottom: 12 }}>
@@ -69,6 +67,10 @@ export function AuditHistory() {
         <span>
           <i className="sw" style={{ background: "#A07208" }} />
           Open
+        </span>
+        <span>
+          <i className="sw" style={{ background: "#0E8A4D" }} />
+          Resolved
         </span>
       </div>
 
@@ -90,6 +92,24 @@ export function AuditHistory() {
                 onClick={() => setCell(sel && sel.pi === i ? null : { pi: i, d })}
               >
                 <div style={{ width: "100%", display: "flex", flexDirection: "column-reverse", position: "relative" }}>
+                  {d.resolved > 0 && (
+                    <div
+                      style={{
+                        width: "100%",
+                        height: (d.resolved / maxVal) * CHART_H,
+                        background: "#0E8A4D",
+                        borderRadius: d.open === 0 && d.pastDue === 0 ? "3px 3px 0 0" : "0",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {(d.resolved / maxVal) * CHART_H >= 12 && (
+                        <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{d.resolved}</span>
+                      )}
+                    </div>
+                  )}
                   {d.open > 0 && (
                     <div
                       style={{
@@ -169,7 +189,8 @@ export function AuditHistory() {
           <div className="row gap8" style={{ marginTop: 6, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: "#8E0E1F" }}>Past due: {sel.d.pastDue}</span>
             <span style={{ fontSize: 12, color: "#A07208" }}>Open: {sel.d.open}</span>
-            <span style={{ fontSize: 12, fontWeight: 700 }}>Total open: {sel.d.total}</span>
+            <span style={{ fontSize: 12, color: "#0E8A4D" }}>Resolved: {sel.d.resolved}</span>
+            <span style={{ fontSize: 12, fontWeight: 700 }}>Total: {sel.d.total}</span>
           </div>
         </div>
       )}
