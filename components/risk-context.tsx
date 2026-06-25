@@ -33,6 +33,8 @@ interface RiskCtx {
   statusFilter: string | null;
   ratingFilter: string | null;
   cell: CellSel;
+  /** Index into `P` for the register's "as of" period. Defaults to the latest. */
+  selPeriod: number;
   auditList: AuditPoint[];
   erList: ErMeasure[];
   aCounts: Record<string, number>;
@@ -46,6 +48,7 @@ interface RiskCtx {
   setStatusFilter: (s: string | null) => void;
   setRatingFilter: (s: string | null) => void;
   setCell: (c: CellSel) => void;
+  setSelPeriod: (i: number) => void;
   switchMode: (m: Mode) => void;
   refreshData: () => Promise<void>;
   login: (pw: string) => Promise<{ ok: boolean; error?: string }>;
@@ -83,6 +86,7 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [ratingFilter, setRatingFilter] = useState<string | null>(null);
   const [cell, setCell] = useState<CellSel>(null);
+  const [selPeriod, setSelPeriod] = useState<number>(0);
 
   const refreshData = useCallback(async () => {
     setXlStatus("loading");
@@ -150,6 +154,11 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
 
   const P = data.periods;
   const LAST = P.length - 1;
+
+  // Default the register's "as of" period to the latest whenever the dataset changes.
+  useEffect(() => {
+    setSelPeriod(data.periods.length - 1);
+  }, [data.periods.length]);
   const auditList = data.audit;
   const erList = data.er;
 
@@ -198,9 +207,9 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
 
   const value: RiskCtx = {
     data, P, LAST, xlStatus, admin, authConfigured,
-    mode, tab, open, statusFilter, ratingFilter, cell,
+    mode, tab, open, statusFilter, ratingFilter, cell, selPeriod,
     auditList, erList, aCounts, openAudit, erSnap, erBandCounts, lossSnap,
-    setTab, setOpen, setMode, setStatusFilter, setRatingFilter, setCell,
+    setTab, setOpen, setMode, setStatusFilter, setRatingFilter, setCell, setSelPeriod,
     switchMode, refreshData, login, logout, changePassword,
   };
 

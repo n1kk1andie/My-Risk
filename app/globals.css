@@ -142,5 +142,10 @@ body { margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Ple
 .kvtable td:first-child { color:#8A7E7A; font-weight:600; width:38%; }
 .spark { display:flex; align-items:flex-end; gap:2px; height:34px; margin-top:6px; }
 .sparkbar { flex:1; border-radius:2px 2px 0 0; min-height:2px; }
+.sparkbar.sel { outline:2px solid var(--ink); outline-offset:1px; }
+.period-select { display:flex; align-items:center; gap:8px; margin:2px 4px 10px; }
+.period-select-label { font-family:Sora; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
+.period-select-input { flex:1; min-width:0; border:1.5px solid #E4DDD9; border-radius:10px; padding:9px 12px; font-size:13px;
+  font-weight:600; font-family:inherit; background:#fff; color:var(--ink); cursor:pointer; }
 .erbtn { width:100%; text-align:left; border:none; background:#fff; border-radius:16px; padding:14px;
   box-shadow:0 1px 3px rgba(28,20,22,.07); cursor:pointer; font-family:inherit; color:inherit; }
