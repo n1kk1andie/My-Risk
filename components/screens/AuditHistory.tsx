@@ -1,6 +1,7 @@
 "use client";
 
 import { useRisk } from "@/components/risk-context";
+import { auditStatusAsOf } from "@/lib/audit";
 
 export function AuditHistory() {
   const { P, data, auditList, cell, setCell } = useRisk();
@@ -10,11 +11,15 @@ export function AuditHistory() {
     let pastDue = 0,
       open = 0,
       resolved = 0;
+    // Classify each point by its status *as of that month* (due-date aware),
+    // not its current status — otherwise a point that was past due back then but
+    // has since been resolved would be miscounted as resolved in that month.
     auditList.forEach((a) => {
-      if (!a.tl[pi]) return;
-      if (a.status === "Past Due") pastDue++;
-      else if (a.status === "Open") open++;
-      else resolved++;
+      const s = auditStatusAsOf(a, pi, P);
+      if (s === "Past Due") pastDue++;
+      else if (s === "Open") open++;
+      else if (s === "Resolved") resolved++;
+      // null => not raised yet that month => not counted
     });
     return { p, pastDue, open, resolved, total: pastDue + open + resolved };
   });
