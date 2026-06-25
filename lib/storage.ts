@@ -13,8 +13,11 @@ export type StorageDriverName = "azure-blob" | "vercel-blob" | "local-fs";
 
 export interface StorageDriver {
   name: StorageDriverName;
-  read(): Promise<Buffer | null>;
-  write(buf: Buffer): Promise<void>;
+  // `blob` selects which object to read/write; defaults to the data.xlsx blob.
+  // Pass a different name (e.g. admin credentials) to persist a secondary object
+  // alongside it, using the same configured backend.
+  read(blob?: string): Promise<Buffer | null>;
+  write(buf: Buffer, blob?: string): Promise<void>;
 }
 
 /**
@@ -60,20 +63,20 @@ const CONTAINER = process.env.AZURE_STORAGE_CONTAINER || "vmbs-risk";
 // ── Azure Blob Storage (production) ──────────────────────────────────────────
 const azureDriver: StorageDriver = {
   name: "azure-blob",
-  async read() {
+  async read(blobName = BLOB_NAME) {
     const { BlobServiceClient } = await import("@azure/storage-blob");
     const svc = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING as string);
     const container = svc.getContainerClient(CONTAINER);
-    const blob = container.getBlockBlobClient(BLOB_NAME);
+    const blob = container.getBlockBlobClient(blobName);
     if (!(await blob.exists())) return null;
     return await blob.downloadToBuffer();
   },
-  async write(buf) {
+  async write(buf, blobName = BLOB_NAME) {
     const { BlobServiceClient } = await import("@azure/storage-blob");
     const svc = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING as string);
     const container = svc.getContainerClient(CONTAINER);
     await container.createIfNotExists();
-    const blob = container.getBlockBlobClient(BLOB_NAME);
+    const blob = container.getBlockBlobClient(blobName);
     await blob.uploadData(buf, {
       blobHTTPHeaders: { blobContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
     });
@@ -86,22 +89,22 @@ const azureDriver: StorageDriver = {
 // through a short-lived presigned GET URL (issueSignedToken -> presignUrl -> fetch).
 const vercelDriver: StorageDriver = {
   name: "vercel-blob",
-  async read() {
+  async read(blobName = BLOB_NAME) {
     const { issueSignedToken, presignUrl } = await import("@vercel/blob");
     const token = vercelBlobToken();
-    const signed = await issueSignedToken({ pathname: BLOB_NAME, operations: ["get"], token });
+    const signed = await issueSignedToken({ pathname: blobName, operations: ["get"], token });
     const { presignedUrl } = await presignUrl(signed, {
       operation: "get",
-      pathname: BLOB_NAME,
+      pathname: blobName,
       access: "private",
     });
     const res = await fetch(presignedUrl, { cache: "no-store" });
     if (!res.ok) return null; // 404 = nothing uploaded yet
     return Buffer.from(await res.arrayBuffer());
   },
-  async write(buf) {
+  async write(buf, blobName = BLOB_NAME) {
     const { put } = await import("@vercel/blob");
-    await put(BLOB_NAME, buf, {
+    await put(blobName, buf, {
       access: "private",
       addRandomSuffix: false,
       allowOverwrite: true, // we always overwrite the single data.xlsx blob
@@ -114,22 +117,22 @@ const vercelDriver: StorageDriver = {
 // ── Local filesystem (dev / Azure App Service writable /home) ─────────────────
 const localDriver: StorageDriver = {
   name: "local-fs",
-  async read() {
+  async read(blobName = BLOB_NAME) {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
-    const file = path.join(localDir(), BLOB_NAME);
+    const file = path.join(localDir(), blobName);
     try {
       return await fs.readFile(file);
     } catch {
       return null;
     }
   },
-  async write(buf) {
+  async write(buf, blobName = BLOB_NAME) {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
     const dir = localDir();
     await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(path.join(dir, BLOB_NAME), buf);
+    await fs.writeFile(path.join(dir, blobName), buf);
   },
 };
 

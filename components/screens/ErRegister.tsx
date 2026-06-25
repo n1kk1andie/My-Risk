@@ -4,14 +4,18 @@ import { useRisk } from "@/components/risk-context";
 import { BAND, fmtNum, fmtPct } from "@/lib/rag";
 
 export function ErRegister() {
-  const { P, erSnap, open, setOpen } = useRisk();
+  const { P, erList, selPeriod, open, setOpen } = useRisk();
 
   return (
     <div>
       <div className="grid-measures">
-        {erSnap.map((m, i) => {
+        {erList.map((m, i) => {
           const isOpen = open === m.name;
-          const b = (m.band && BAND[m.band]) || BAND.Target;
+          // Value/band as recorded in the selected period (null = not recorded that month).
+          const selVal = m.s[selPeriod] ?? null;
+          const selBand = m.bands[selPeriod] ?? null;
+          const b = selBand ? BAND[selBand] : null;
+          const numColor = b ? b.color : "#8A7E7A";
           const vals = m.s.filter((x): x is number => x != null);
           const mx = Math.max(...vals, 1);
           return (
@@ -22,14 +26,20 @@ export function ErRegister() {
                     <div className="t13" style={{ flex: 1, paddingRight: 8 }}>
                       {m.name}
                     </div>
-                    <div className="num16" style={{ color: b.color }}>
-                      {m.isPct ? fmtPct(m.latest) : fmtNum(m.latest)}
+                    <div className="num16" style={{ color: numColor }}>
+                      {m.isPct ? fmtPct(selVal) : fmtNum(selVal)}
                     </div>
                   </div>
                   <div className="aptmeta">
-                    <span className="statpill" style={{ background: b.bg, color: b.color }}>
-                      {b.label}
-                    </span>
+                    {b ? (
+                      <span className="statpill" style={{ background: b.bg, color: b.color }}>
+                        {b.label}
+                      </span>
+                    ) : (
+                      <span className="statpill" style={{ background: "#F1ECE9", color: "#8A7E7A" }}>
+                        Not recorded
+                      </span>
+                    )}
                     <span>target {m.isPct ? fmtPct(m.target) : m.target_raw || "—"}</span>
                   </div>
                 </div>
@@ -38,11 +48,12 @@ export function ErRegister() {
                 <div>
                   <div className="spark">
                     {m.s.map((v, mi) => {
+                      const sel = mi === selPeriod;
                       if (v == null)
                         return (
                           <div
                             key={mi}
-                            className="sparkbar"
+                            className={"sparkbar" + (sel ? " sel" : "")}
                             style={{ background: "#F1ECE9", height: "4px" }}
                             title={P[mi] + ": n/a"}
                           />
@@ -52,7 +63,7 @@ export function ErRegister() {
                       return (
                         <div
                           key={mi}
-                          className="sparkbar"
+                          className={"sparkbar" + (sel ? " sel" : "")}
                           style={{ background: bb.color, height: norm * 34 + "px" }}
                           title={P[mi] + ": " + (m.isPct ? fmtPct(v) : fmtNum(v))}
                         />
@@ -74,8 +85,8 @@ export function ErRegister() {
                         <td>{m.lim != null ? (m.isPct ? fmtPct(m.lim) : m.lim) : "—"}</td>
                       </tr>
                       <tr>
-                        <td>Latest ({P[m.latestIdx]})</td>
-                        <td>{m.isPct ? fmtPct(m.latest) : fmtNum(m.latest)}</td>
+                        <td>{P[selPeriod]}</td>
+                        <td>{m.isPct ? fmtPct(selVal) : fmtNum(selVal)}</td>
                       </tr>
                     </tbody>
                   </table>

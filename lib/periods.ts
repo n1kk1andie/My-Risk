@@ -35,4 +35,13 @@ export function mon3(p: string): string {
   return p.split(" ")[0].slice(0, 3);
 }
 
+/** Last calendar day of a period, e.g. "Jun '26" -> 30 Jun 2026. null if unparseable. */
+export function periodEndDate(p: string): Date | null {
+  const [mo, yr] = p.split(" ");
+  const mi = MON3.indexOf((mo || "").slice(0, 3));
+  const yy = (yr || "").replace("'", "");
+  if (mi < 0 || !/^\d{2}$/.test(yy)) return null;
+  return new Date(2000 + Number(yy), mi + 1, 0); // day 0 of next month = last day of this one
+}
+
 export { MON3, MON_FULL };

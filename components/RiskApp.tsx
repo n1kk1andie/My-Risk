@@ -8,6 +8,7 @@ import { AuditPulse } from "@/components/screens/AuditPulse";
 import { ErPulse } from "@/components/screens/ErPulse";
 import { AuditRegister } from "@/components/screens/AuditRegister";
 import { ErRegister } from "@/components/screens/ErRegister";
+import { PeriodSelect } from "@/components/ui/PeriodSelect";
 import { AuditHistory } from "@/components/screens/AuditHistory";
 import { ErHistory } from "@/components/screens/ErHistory";
 import { Report } from "@/components/screens/Report";
@@ -55,6 +56,7 @@ export function RiskApp() {
       if (tab === "register")
         return (
           <div>
+            <PeriodSelect />
             <ErRegister />
             <div className="h2l">Audit register</div>
             <AuditRegister />
@@ -72,13 +74,25 @@ export function RiskApp() {
       if (tab === "settings") return admin ? <Settings /> : null;
     } else if (mode === "audit") {
       if (tab === "pulse") return <AuditPulse />;
-      if (tab === "register") return <AuditRegister />;
+      if (tab === "register")
+        return (
+          <div>
+            <PeriodSelect />
+            <AuditRegister />
+          </div>
+        );
       if (tab === "history") return <AuditHistory />;
       if (tab === "report") return <Report />;
       if (tab === "settings") return admin ? <Settings /> : null;
     } else {
       if (tab === "pulse") return <ErPulse />;
-      if (tab === "register") return <ErRegister />;
+      if (tab === "register")
+        return (
+          <div>
+            <PeriodSelect />
+            <ErRegister />
+          </div>
+        );
       if (tab === "history") return <ErHistory />;
       if (tab === "report") return <Report />;
       if (tab === "settings") return admin ? <Settings /> : null;
